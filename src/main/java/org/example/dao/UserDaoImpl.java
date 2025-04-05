@@ -68,11 +68,29 @@ public class UserDaoImpl implements UserDao {
 
     @Override
     public User getUserById(String telegram_id) {
-        String sql = "SELECT * FROM tasks WHERE id = ?";
 
     }
 
-    @Override
+    public boolean userExists(Connection connection, String telegramId) {
+        String sql = "SELECT COUNT(*) FROM users WHERE telegram_id = ?";
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, telegramId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    int count = rs.getInt(1);
+                    return count > 0;
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+        @Override
     public void updateUserXP(String tg_username) {
 
     }
