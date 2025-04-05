@@ -11,5 +11,4 @@ public interface InterviewDao {
     String getUser1Task(Interview interview);
     String  getUser2Task(Interview interview);
     List<Interview> plannedInterviews(User user);
-
 }
