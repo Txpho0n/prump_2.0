@@ -70,14 +70,22 @@ public class Manager {
         return users.get(random).getTelegramId();
     }
 
+    public void initialAssessment(String leetcodeUsername) throws IOException {
+        JsonNode solvedProblems = client.getUserSolvedProblemsAsJson(leetcodeUsername);
 
+        if (solvedProblems == null || solvedProblems.isNull()) {
+            throw new IOException("Не удалось получить данные из LeetCode");
+        }
 
-    public void initialAssessment(String leetcode_username, Long new_xp) throws IOException {
-        Long easySolved = client.getUserSolvedProblemsAsJson(leetcode_username).get("easySolved").asLong();
-        Long mediumSolved = client.getUserSolvedProblemsAsJson(leetcode_username).get("mediumSolved").asLong();
-        Long hardSolved = client.getUserSolvedProblemsAsJson(leetcode_username).get("hardSolved").asLong();
-        Long totalSolvedXP = easySolved*10 + mediumSolved*20 + hardSolved*30;
-        userDao.updateUserXP(leetcode_username, totalSolvedXP);
+        long easySolved = solvedProblems.get("easySolved").asLong();
+        long mediumSolved = solvedProblems.get("mediumSolved").asLong();
+        long hardSolved = solvedProblems.get("hardSolved").asLong();
 
+        long totalXP = easySolved * 10 + mediumSolved * 20 + hardSolved * 30;
+
+        User user = userDao.getUserByLeetCodeUsername(leetcodeUsername);
+        if (user != null) {
+            userDao.updateUserXP(user.getTelegramId(), totalXP);
+        }
     }
 }

@@ -40,6 +40,10 @@ public class UserService {
         userDao.updateLastMockTimestamp(tgUsername, newTimestamp);
     }
 
+    public void updateLeetCodeUsername(String telegramId, String leetcodeUsername) {
+        userDao.updateLeetCodeUsername(telegramId, leetcodeUsername);
+    }
+
     public List<User> findUsersByGroup(String league) {
         return userDao.findUsersByGroup(league);
     }

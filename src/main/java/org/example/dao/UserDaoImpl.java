@@ -102,6 +102,35 @@ public class UserDaoImpl implements UserDao, DaoInterface {
         return null;
     }
 
+    @Override
+    public User getUserByLeetCodeUsername(String leetcodeUsername) {
+        String sql = "SELECT * FROM users WHERE leetcode_username = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, leetcodeUsername);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return new User(
+                        rs.getString("tg_username"),
+                        rs.getString("leetcode_username"),
+                        rs.getString("league"),
+                        rs.getString("telegram_id"),
+                        rs.getLong("xp"),
+                        rs.getString("full_name"),
+                        rs.getTimestamp("last_mock_interview") != null
+                                ? rs.getTimestamp("last_mock_interview").toLocalDateTime()
+                                : null,
+                        rs.getTimestamp("last_solved_task_timestamp") != null
+                                ? rs.getTimestamp("last_solved_task_timestamp").toLocalDateTime()
+                                : null,
+                        rs.getTimestamp("registration_date").toLocalDateTime(),
+                        rs.getBoolean("is_admin")
+                );
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     public boolean userExists(Connection connection, String telegramId) {
         String sql = "SELECT COUNT(*) FROM users WHERE telegram_id = ?";
@@ -123,17 +152,22 @@ public class UserDaoImpl implements UserDao, DaoInterface {
     }
 
     @Override
-    public void updateUserXP(String tg_username, Long new_xp) {
-        String sql = "UPDATE users SET xp = ? WHERE tg_username = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)){
+    public void updateUserXP(String telegramId, Long new_xp) {
+        String sql = "UPDATE users SET xp = ? WHERE telegram_id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setLong(1, new_xp);
-            stmt.setString(2, tg_username);
-            stmt.executeUpdate();
+            stmt.setString(2, telegramId);
+            int affectedRows = stmt.executeUpdate();
+
+            if (affectedRows == 0) {
+                System.err.println("⚠ Пользователь с telegram_id=" + telegramId + " не найден");
+            } else {
+                System.out.println("✅ XP пользователя " + telegramId + " обновлен: " + new_xp);
+            }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("❌ Ошибка при обновлении XP: " + e.getMessage());
         }
     }
-
 
     @Override
     public void updateLastSolvedTaskTimestamp(String tg_username, LocalDateTime new_timestamp) {
@@ -147,6 +181,17 @@ public class UserDaoImpl implements UserDao, DaoInterface {
         }
     }
 
+    @Override
+    public void updateLeetCodeUsername(String telegramId, String leetcodeUsername) {
+        String sql = "UPDATE users SET leetcode_username = ? WHERE telegram_id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, leetcodeUsername);
+            stmt.setString(2, telegramId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
     @Override
     public void updateLastMockTimestamp(String tg_username, LocalDateTime new_timestamp) {
@@ -185,9 +230,9 @@ public class UserDaoImpl implements UserDao, DaoInterface {
                         rs.getBoolean("is_admin")
                 ));
             }
+            return users;
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-        return null;
     }
 }
