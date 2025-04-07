@@ -3,15 +3,42 @@ package org.example.dao;
 import org.example.config.DatabaseConfig;
 import org.example.model.Interview;
 import org.example.model.User;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class InterviewDaoImpl implements InterviewDao {
+public class InterviewDaoImpl implements InterviewDao, DaoInterface {
     private final Connection connection;
 
-    public InterviewDaoImpl() {
-        this.connection = DatabaseConfig.getInstance().getConnection();
+    @Override
+    public void createTableIfNotExists() {
+        String schemaPath = "src/main/resources/sql/interviews_schema.sql"; // Путь к файлу с SQL-скриптом
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(schemaPath));
+             Statement stmt = connection.createStatement()) {
+
+            StringBuilder sql = new StringBuilder();
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                sql.append(line).append("\n");
+            }
+
+            stmt.executeUpdate(sql.toString());
+            System.out.println("✅ Таблица users проверена/создана!");
+
+        } catch (SQLException | IOException e) {
+            System.out.println("⚠ Ошибка при создании таблицы users: " + e.getMessage());
+        }
+    }
+
+    public InterviewDaoImpl(Connection connection) {
+        this.connection = connection;
+        createTableIfNotExists();
     }
 
     @Override
@@ -31,6 +58,30 @@ public class InterviewDaoImpl implements InterviewDao {
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка при создании интервью", e);
         }
+    }
+
+    public Interview getInterviewById(Long id) {
+        String sql = "SELECT * FROM interviews WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return new Interview(
+                        rs.getLong("id"),
+                        rs.getLong("topic_id"),
+                        rs.getString("partner1_id"),
+                        rs.getString("partner2_id"),
+                        rs.getString("task_user1"),
+                        rs.getString("task_user2"),
+                        rs.getString("room_link"),
+                        rs.getTimestamp("start_time").toLocalDateTime(),
+                        rs.getTimestamp("end_time").toLocalDateTime()
+                );
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Ошибка при получении интервью", e);
+        }
+        return null;
     }
 
     @Override

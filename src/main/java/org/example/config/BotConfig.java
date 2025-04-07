@@ -27,7 +27,7 @@ public class BotConfig {
         return properties.getProperty("TOKEN");
     }
 
-    public String getTopic(){
+    public static String getTopic(){
         try {
             String content = new String(Files.readAllBytes(Paths.get(CONFIG_FILE)));
             JSONObject jsonObject = new JSONObject(content);

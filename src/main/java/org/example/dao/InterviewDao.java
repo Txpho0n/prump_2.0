@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface InterviewDao {
     void createMockInterview(Interview interview);
+    Interview getInterviewById(Long id);
     void assignTasksToUsers(Interview interview);
     String getUser1Task(Interview interview);
     String  getUser2Task(Interview interview);

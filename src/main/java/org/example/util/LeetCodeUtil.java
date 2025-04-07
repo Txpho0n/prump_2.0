@@ -68,12 +68,18 @@ public class LeetCodeUtil {
      * @return JsonNode with the response
      * @throws IOException If an I/O error occurs
      */
-    public JsonNode getProblemsAsJson(int limit, String tags, int skip, String difficulty) throws IOException {
+    public JsonNode getProblemsAsJson(Integer limit, String tags, Integer skip, String difficulty) throws IOException {
         Map<String, String> params = new HashMap<>();
-        params.put("limit", String.valueOf(limit));
+        if (limit != null) {
+            params.put("limit", String.valueOf(limit));
+        }
         params.put("tags", tags);
-        params.put("skip", String.valueOf(skip));
-        params.put("difficulty", difficulty);
+        if (skip != null) {
+            params.put("skip", String.valueOf(skip));
+        }
+        if (difficulty != null) {
+            params.put("difficulty", difficulty);
+        }
 
         String response = sendGetRequest(BASE_URL + "/problems" + buildQueryString(params));
         return objectMapper.readTree(response);

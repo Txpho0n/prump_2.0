@@ -7,13 +7,16 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.sql.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
-public class UserDaoImpl implements UserDao {
+public class UserDaoImpl implements UserDao, DaoInterface {
 
     private final Connection connection;
 
+    @Override
     public void createTableIfNotExists() {
-        String schemaPath = "src/main/resources/sql/postgresql_schema.sql"; // Путь к файлу с SQL-скриптом
+        String schemaPath = "src/main/resources/sql/users_schema.sql"; // Путь к файлу с SQL-скриптом
 
         try (BufferedReader reader = new BufferedReader(new FileReader(schemaPath));
              Statement stmt = connection.createStatement()) {
@@ -37,6 +40,7 @@ public class UserDaoImpl implements UserDao {
         this.connection = connection;
         createTableIfNotExists();
     }
+
     @Override
     public void registerUser(User user) {
         String sql = "INSERT INTO users (telegram_id, tg_username, xp, full_name, last_mock_interview, last_solved_task_timestamp, registration_date, is_admin) "
@@ -68,8 +72,36 @@ public class UserDaoImpl implements UserDao {
 
     @Override
     public User getUserById(String telegram_id) {
-
+        String sql = "SELECT * FROM users WHERE telegram_id = ?";
+        try(PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, telegram_id);
+            ResultSet rs = stmt.executeQuery();
+            if(rs.next()){
+                return new User(
+                        rs.getString("tg_username"),
+                        rs.getString("leetcode_username"),
+                        rs.getString("league"),
+                        rs.getString("telegram_id"),
+                        rs.getLong("xp"),
+                        rs.getString("full_name"),
+                        rs.getTimestamp("last_mock_interview") != null
+                                ? rs.getTimestamp("last_mock_interview").toLocalDateTime()
+                                : null,
+                        rs.getTimestamp("last_solved_task_timestamp") != null
+                                ? rs.getTimestamp("last_solved_task_timestamp").toLocalDateTime()
+                                : null,
+                        rs.getTimestamp("registration_date").toLocalDateTime(),
+                        rs.getBoolean("is_admin")
+                );
+            } else {
+                return null;
+            }
+        } catch (SQLException e){
+            e.printStackTrace();
+        }
+        return null;
     }
+
 
     public boolean userExists(Connection connection, String telegramId) {
         String sql = "SELECT COUNT(*) FROM users WHERE telegram_id = ?";
@@ -91,22 +123,71 @@ public class UserDaoImpl implements UserDao {
     }
 
     @Override
-    public void updateUserXP(String tg_username) {
+    public void updateUserXP(String tg_username, Long new_xp) {
+        String sql = "UPDATE users SET xp = ? WHERE tg_username = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)){
+            stmt.setLong(1, new_xp);
+            stmt.setString(2, tg_username);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
+
+    @Override
+    public void updateLastSolvedTaskTimestamp(String tg_username, LocalDateTime new_timestamp) {
+        String sql = "UPDATE users SET last_solved_task_timestamp = ? WHERE tg_username = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)){
+            stmt.setTimestamp(1, Timestamp.valueOf(new_timestamp));
+            stmt.setString(2, tg_username);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    @Override
+    public void updateLastMockTimestamp(String tg_username, LocalDateTime new_timestamp) {
+        String sql = "UPDATE users SET last_mock_interview = ? WHERE tg_username = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)){
+            stmt.setTimestamp(1, Timestamp.valueOf(new_timestamp));
+            stmt.setString(2, tg_username);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
-    public void updateLastSolvedTaskTimestamp(String tg_username) {
-
-    }
-
-    @Override
-    public void updateLastMockTimestamp(String tg_username) {
-
-    }
-
-    @Override
-    public void findUserByGroup(User user) {
-
+    public List<User> findUsersByGroup(String league) {
+        String sql = "SELECT * FROM users WHERE league = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)){
+            stmt.setString(1, league);
+            ResultSet rs = stmt.executeQuery();
+            List<User> users = new ArrayList<>();
+            while (rs.next()){
+                users.add(new User(
+                        rs.getString("tg_username"),
+                        rs.getString("leetcode_username"),
+                        rs.getString("league"),
+                        rs.getString("telegram_id"),
+                        rs.getLong("xp"),
+                        rs.getString("full_name"),
+                        rs.getTimestamp("last_mock_interview") != null
+                                ? rs.getTimestamp("last_mock_interview").toLocalDateTime()
+                                : null,
+                        rs.getTimestamp("last_solved_task_timestamp") != null
+                                ? rs.getTimestamp("last_solved_task_timestamp").toLocalDateTime()
+                                : null,
+                        rs.getTimestamp("registration_date").toLocalDateTime(),
+                        rs.getBoolean("is_admin")
+                ));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return null;
     }
 }
