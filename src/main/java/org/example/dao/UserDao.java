@@ -20,6 +20,9 @@ public interface UserDao {
     void updateLastMockTimestamp(String tg_username, LocalDateTime new_timestamp);
 
     List<User> findUsersByGroup(String league);
-    boolean userExists(Connection connection, String telegramId);
+    boolean userExists(String telegramId);
+    String getUserLeague(String telegramId);
+    boolean isActive(String telegramId);
+    void setActive(String telegramId, boolean isActive);
 
 }

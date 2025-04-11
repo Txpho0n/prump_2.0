@@ -12,18 +12,18 @@ import java.sql.Connection;
 import java.util.List;
 
 public class Manager {
-    private LeetCodeUtil client = new LeetCodeUtil();
+    private final LeetCodeUtil client = new LeetCodeUtil();
     private final UserDaoImpl userDao;
     private final InterviewDaoImpl interviewDao;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public Manager(Connection connection) throws IOException {
         this.interviewDao = new InterviewDaoImpl(connection);
         this.userDao = new UserDaoImpl(connection);
     }
 
-
-    public JsonNode matchTask(Long xp_points) throws IOException {
-        String taskDifficulty = null;
+    public JsonNode matchTask(Long xp_points) throws IOException, InterruptedException {
+        String taskDifficulty;
         if (xp_points < 1000) {
             taskDifficulty = "EASY";
         } else if (xp_points < 2000) {
@@ -32,60 +32,72 @@ public class Manager {
             taskDifficulty = "HARD";
         }
         String topic = BotConfig.getTopic();
-        int totalProblems = client.getProblemsAsJson(1, topic, null, taskDifficulty).get("totalQuestions").asInt();
-        ObjectMapper objectMapper = new ObjectMapper();
-        JsonNode firstProblem = null;
 
-        while (true) {
-            int randomNumber = (int) (Math.random() * totalProblems);
-            String response = String.valueOf(client.getProblemsAsJson(randomNumber, topic, 1, taskDifficulty));
-            JsonNode rootNode = objectMapper.readTree(response);
-            JsonNode problemsetQuestionList = rootNode.get("problemsetQuestionList");
-            if (problemsetQuestionList.isArray() && problemsetQuestionList.size() > 0) {
-                firstProblem = problemsetQuestionList.get(0);
-                if (!firstProblem.get("isPaidOnly").asBoolean()) {
-                    break;
-                }
-            }
+        // Получаем общее количество задач (примерное значение, так как API не дает точного total)
+        JsonNode problemsResponse = client.getProblemsAsJson(1, topic, 0, taskDifficulty);
+        JsonNode questions = problemsResponse.path("data").path("problemsetQuestionList").path("questions");
+
+        // Так как totalQuestions нет, используем большой skip для случайности
+        int maxSkip = 1000; // Примерное максимальное значение, можно уточнить
+        int randomSkip = (int) (Math.random() * maxSkip);
+
+        // Получаем одну случайную задачу
+        JsonNode randomProblemResponse = client.getProblemsAsJson(1, topic, randomSkip, taskDifficulty);
+        JsonNode problemList = randomProblemResponse.path("data").path("problemsetQuestionList").path("questions");
+
+        if (problemList.isArray() && problemList.size() > 0) {
+            return problemList.get(0); // Берем первую задачу из списка
+        } else {
+            throw new IOException("Не удалось найти подходящую задачу для темы " + topic + " и сложности " + taskDifficulty);
         }
-
-        /*
-        получаем поля задачи
-
-        double acRate = firstProblem.get("acRate").asDouble();
-        String difficulty = firstProblem.get("difficulty").asText();
-        String questionFrontendId = firstProblem.get("questionFrontendId").asText();
-        boolean isFavor = firstProblem.get("isFavor").asBoolean();
-        String title = firstProblem.get("title").asText();
-        String titleSlug = firstProblem.get("titleSlug").asText();
-
-        */
-
-        return firstProblem;
     }
 
-    public String getPeerTelegramId(String league){
+    public String getPeerTelegramId(String league) {
         List<User> users = userDao.findUsersByGroup(league);
+        if (users.isEmpty()) return null;
+
+        List<User> activeUsers = users.stream()
+                .filter(user -> userDao.isActive(user.getTelegramId()))
+                .toList();
+
+        if (activeUsers.isEmpty()) return null;
         int random = (int) (Math.random() * users.size());
         return users.get(random).getTelegramId();
     }
 
-    public void initialAssessment(String leetcodeUsername) throws IOException {
+    public void initialAssessment(String leetcodeUsername) throws IOException, InterruptedException {
         JsonNode solvedProblems = client.getUserSolvedProblemsAsJson(leetcodeUsername);
 
-        if (solvedProblems == null || solvedProblems.isNull()) {
-            throw new IOException("Не удалось получить данные из LeetCode");
+        // Проверка структуры ответа
+        JsonNode submitStats = solvedProblems.path("data").path("matchedUser").path("submitStats").path("acSubmissionNum");
+        if (submitStats.isMissingNode() || !submitStats.isArray()) {
+            throw new IOException("Не удалось получить статистику решенных задач для " + leetcodeUsername);
         }
 
-        long easySolved = solvedProblems.get("easySolved").asLong();
-        long mediumSolved = solvedProblems.get("mediumSolved").asLong();
-        long hardSolved = solvedProblems.get("hardSolved").asLong();
+        long easySolved = 0, mediumSolved = 0, hardSolved = 0;
+        for (JsonNode stat : submitStats) {
+            String difficulty = stat.get("difficulty").asText();
+            long count = stat.get("count").asLong();
+            switch (difficulty) {
+                case "Easy":
+                    easySolved = count;
+                    break;
+                case "Medium":
+                    mediumSolved = count;
+                    break;
+                case "Hard":
+                    hardSolved = count;
+                    break;
+            }
+        }
 
         long totalXP = easySolved * 10 + mediumSolved * 20 + hardSolved * 30;
 
         User user = userDao.getUserByLeetCodeUsername(leetcodeUsername);
         if (user != null) {
             userDao.updateUserXP(user.getTelegramId(), totalXP);
+        } else {
+            throw new IllegalStateException("Пользователь с LeetCode именем " + leetcodeUsername + " не найден в базе");
         }
     }
 }

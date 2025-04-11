@@ -14,8 +14,10 @@ public class User {
     private LocalDateTime registration_date;
     private boolean is_admin;
 
+    private boolean is_active;
+
     // Constructor
-    public User(String tg_username, String leetcode_username, String league, String telegram_id, Long XP, String full_name, LocalDateTime last_mock_interview, LocalDateTime last_solved_task_timestamp, LocalDateTime registration_date, boolean is_admin) {
+    public User(String tg_username, String telegram_id, String leetcode_username, Long XP, String league, String full_name, LocalDateTime last_mock_interview, LocalDateTime last_solved_task_timestamp, LocalDateTime registration_date, boolean is_admin, boolean is_active) {
         this.tg_username = tg_username;
         this.telegram_id = telegram_id;
         this.leetcode_username = leetcode_username;
@@ -26,6 +28,7 @@ public class User {
         this.last_solved_task_timestamp = last_solved_task_timestamp;
         this.registration_date = registration_date;
         this.is_admin = is_admin;
+        this.is_active = is_active;
     }
 
     // Getters
@@ -68,6 +71,9 @@ public class User {
     public boolean isAdmin() {
         return is_admin;
     }
+    public boolean isActive() {
+        return is_active;
+    }
 
     // Setters
     public void setTgUsername(String tg_username) {
@@ -108,5 +114,8 @@ public class User {
 
     public void setAdmin(boolean is_admin) {
         this.is_admin = is_admin;
+    }
+    public void setActive(boolean is_active) {
+        this.is_active = is_active;
     }
 }

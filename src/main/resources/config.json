@@ -1,4 +1,8 @@
 {
-  "currentTopic": "sosal",
-  "topics": ["binary-search", "two-pointers", "dynamic-programming"]
+    "currentTopic": "Quickselect",
+    "topics": [
+        "binary-search",
+        "two-pointers",
+        "dynamic-programming"
+    ]
 }

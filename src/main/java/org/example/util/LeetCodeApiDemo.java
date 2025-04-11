@@ -30,6 +30,8 @@ public class LeetCodeApiDemo {
         } catch (IOException e) {
             System.err.println("Error communicating with API: " + e.getMessage());
             e.printStackTrace();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 }

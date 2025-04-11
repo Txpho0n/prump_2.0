@@ -12,6 +12,7 @@ import java.util.List;
 public class UserService {
     private final UserDaoImpl userDao;
     private final DatabaseConfig databaseConfig = DatabaseConfig.getInstance();
+
     public UserService(Connection connection) throws IOException {
         this.userDao = new UserDaoImpl(connection);
     }
@@ -24,8 +25,21 @@ public class UserService {
         return userDao.getUserById(telegramId);
     }
 
+
+    public boolean isActive(String telegramId) {
+        return userDao.isActive(telegramId);
+    }
+
+    public void setActive(String telegramId, boolean isActive) {
+        userDao.setActive(telegramId, isActive);
+    }
+
+    public boolean isAdmin(String telegramId) {
+        return userDao.isUserAdmin(telegramId);
+    }
+
     public boolean userExists(String telegramId) {
-        return userDao.userExists(databaseConfig.getConnection(), telegramId);
+        return userDao.userExists(telegramId);
     }
 
     public void updateUserXP(String tgUsername, Long newXP) {
@@ -40,11 +54,27 @@ public class UserService {
         userDao.updateLastMockTimestamp(tgUsername, newTimestamp);
     }
 
+    public String getUserLeague(String telegramId) {
+        return userDao.getUserLeague(telegramId);
+    }
+
     public void updateLeetCodeUsername(String telegramId, String leetcodeUsername) {
         userDao.updateLeetCodeUsername(telegramId, leetcodeUsername);
     }
 
+    public List<User> findAllUsers(){
+        return userDao.findAllUsers();
+    }
+
     public List<User> findUsersByGroup(String league) {
         return userDao.findUsersByGroup(league);
+    }
+
+    public void updateUserLeague(String telegramId, String newLeague) {
+        userDao.updateUserLeague(telegramId, newLeague);
+    }
+
+    public List<User> getAllUsers() {
+        return userDao.findAllUsers();
     }
 }

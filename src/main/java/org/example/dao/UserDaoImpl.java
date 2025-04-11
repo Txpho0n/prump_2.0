@@ -79,10 +79,10 @@ public class UserDaoImpl implements UserDao, DaoInterface {
             if(rs.next()){
                 return new User(
                         rs.getString("tg_username"),
-                        rs.getString("leetcode_username"),
-                        rs.getString("league"),
                         rs.getString("telegram_id"),
+                        rs.getString("leetcode_username"),
                         rs.getLong("xp"),
+                        rs.getString("league"),
                         rs.getString("full_name"),
                         rs.getTimestamp("last_mock_interview") != null
                                 ? rs.getTimestamp("last_mock_interview").toLocalDateTime()
@@ -91,7 +91,8 @@ public class UserDaoImpl implements UserDao, DaoInterface {
                                 ? rs.getTimestamp("last_solved_task_timestamp").toLocalDateTime()
                                 : null,
                         rs.getTimestamp("registration_date").toLocalDateTime(),
-                        rs.getBoolean("is_admin")
+                        rs.getBoolean("is_admin"),
+                        rs.getBoolean("is_active")
                 );
             } else {
                 return null;
@@ -111,10 +112,10 @@ public class UserDaoImpl implements UserDao, DaoInterface {
             if (rs.next()) {
                 return new User(
                         rs.getString("tg_username"),
-                        rs.getString("leetcode_username"),
-                        rs.getString("league"),
                         rs.getString("telegram_id"),
+                        rs.getString("leetcode_username"),
                         rs.getLong("xp"),
+                        rs.getString("league"),
                         rs.getString("full_name"),
                         rs.getTimestamp("last_mock_interview") != null
                                 ? rs.getTimestamp("last_mock_interview").toLocalDateTime()
@@ -123,7 +124,8 @@ public class UserDaoImpl implements UserDao, DaoInterface {
                                 ? rs.getTimestamp("last_solved_task_timestamp").toLocalDateTime()
                                 : null,
                         rs.getTimestamp("registration_date").toLocalDateTime(),
-                        rs.getBoolean("is_admin")
+                        rs.getBoolean("is_admin"),
+                        rs.getBoolean("is_active")
                 );
             }
         } catch (SQLException e) {
@@ -132,7 +134,21 @@ public class UserDaoImpl implements UserDao, DaoInterface {
         return null;
     }
 
-    public boolean userExists(Connection connection, String telegramId) {
+    public boolean isUserAdmin(String telegramId) {
+        String sql = "SELECT is_admin FROM users WHERE telegram_id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, telegramId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getBoolean("is_admin");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean userExists(String telegramId) {
         String sql = "SELECT COUNT(*) FROM users WHERE telegram_id = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -215,10 +231,10 @@ public class UserDaoImpl implements UserDao, DaoInterface {
             while (rs.next()){
                 users.add(new User(
                         rs.getString("tg_username"),
-                        rs.getString("leetcode_username"),
-                        rs.getString("league"),
                         rs.getString("telegram_id"),
+                        rs.getString("leetcode_username"),
                         rs.getLong("xp"),
+                        rs.getString("league"),
                         rs.getString("full_name"),
                         rs.getTimestamp("last_mock_interview") != null
                                 ? rs.getTimestamp("last_mock_interview").toLocalDateTime()
@@ -227,12 +243,125 @@ public class UserDaoImpl implements UserDao, DaoInterface {
                                 ? rs.getTimestamp("last_solved_task_timestamp").toLocalDateTime()
                                 : null,
                         rs.getTimestamp("registration_date").toLocalDateTime(),
-                        rs.getBoolean("is_admin")
+                        rs.getBoolean("is_admin"),
+                        rs.getBoolean("is_active")
                 ));
             }
             return users;
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public List<User> findAllUsers() {
+        String sql = "SELECT * FROM users";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ResultSet rs = ps.executeQuery();
+            List<User> users = new ArrayList<>();
+            while (rs.next()) {
+                users.add(new User(
+                        rs.getString("telegram_id"),
+                        rs.getString("tg_username"),
+                        rs.getString("leetcode_username"),
+
+                        rs.getLong("xp"),
+
+                        rs.getString("league"),
+                        rs.getString("full_name"),
+                        rs.getTimestamp("last_mock_interview") != null
+                                ? rs.getTimestamp("last_mock_interview").toLocalDateTime()
+                                : null,
+                        rs.getTimestamp("last_solved_task_timestamp") != null
+                                ? rs.getTimestamp("last_solved_task_timestamp").toLocalDateTime()
+                                : null,
+                        rs.getTimestamp("registration_date").toLocalDateTime(),
+                        rs.getBoolean("is_admin"),
+                        rs.getBoolean("is_active")
+                ));
+            }
+            return users;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error fetching all users", e);
+        }
+    }
+
+    public void updateUserLeague(String telegramId, String league) {
+        String sql = "UPDATE users SET league = ? WHERE telegram_id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, league);
+            ps.setString(2, telegramId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error updating user league", e);
+        }
+    }
+
+    public String getUserLeague(String telegramId) {
+        String sql = "SELECT league FROM users WHERE telegram_id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, telegramId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getString("league");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error fetching user league", e);
+        }
+        return null;
+    }
+
+    public List<User> getAllUsers() {
+        String sql = "SELECT * FROM users";
+        List<User> users = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                users.add(new User(
+                        rs.getString("tg_username"),
+                        rs.getString("telegram_id"),
+                        rs.getString("leetcode_username"),
+                        rs.getLong("xp"),
+                        rs.getString("league"),
+                        rs.getString("full_name"),
+                        rs.getTimestamp("last_mock_interview") != null
+                                ? rs.getTimestamp("last_mock_interview").toLocalDateTime()
+                                : null,
+                        rs.getTimestamp("last_solved_task_timestamp") != null
+                                ? rs.getTimestamp("last_solved_task_timestamp").toLocalDateTime()
+                                : null,
+                        rs.getTimestamp("registration_date").toLocalDateTime(),
+                        rs.getBoolean("is_admin"),
+                        rs.getBoolean("is_active")
+                ));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error fetching all users", e);
+        }
+        return users;
+    }
+    @Override
+    public void setActive(String telegramId, boolean isActive) {
+        String sql = "UPDATE users SET is_active = ? WHERE telegram_id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setBoolean(1, isActive);
+            ps.setString(2, telegramId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error updating user activity", e);
+        }
+    }
+    @Override
+    public boolean isActive(String telegramId) {
+        String sql = "SELECT is_active FROM users WHERE telegram_id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, telegramId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getBoolean("is_active");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error checking user activity", e);
+        }
+        return false;
     }
 }
