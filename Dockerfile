@@ -13,7 +13,7 @@ COPY src ./src
 RUN apt-get update && apt-get install -y maven && mvn clean package
 
 # Копируем собранный JAR-файл
-COPY target/algo_train.jar app.jar
+COPY --from=builder /app/target/algo_train.jar app.jar
 
 
 # Команда для запуска приложения
