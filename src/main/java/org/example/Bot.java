@@ -288,7 +288,6 @@ public class Bot extends TelegramLongPollingBot {
         message1.enableMarkdown(true);
 
         SendMessage message2 = new SendMessage();
-        message2.setParseMode("MarkdownV2");
         message2.setChatId(partnerId);
         message2.setText(partnerMessage);
         message2.enableMarkdown(true);
