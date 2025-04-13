@@ -1,13 +1,18 @@
 CREATE TABLE users (
-                       telegram_id VARCHAR(50) PRIMARY KEY,
-                       tg_username VARCHAR(255),
-                       leetcode_username VARCHAR(255),
-                       xp BIGINT DEFAULT 0,
-                       league VARCHAR(50),
-                       full_name VARCHAR(255),
-                       is_admin BOOLEAN DEFAULT FALSE,
-                       is_active BOOLEAN DEFAULT TRUE
+                       telegram_id TEXT PRIMARY KEY NOT NULL,
+                       tg_username TEXT,
+                       leetcode_username TEXT,
+                       xp BIGINT NOT NULL DEFAULT 0,
+                       league TEXT NOT NULL DEFAULT 'Easy',
+                       full_name TEXT NOT NULL,
+                       last_mock_interview TIMESTAMP,
+                       last_solved_task_timestamp TIMESTAMP,
+                       registration_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                       is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+                       is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
+
+
 
 CREATE TABLE interviews (
                             id SERIAL PRIMARY KEY,
