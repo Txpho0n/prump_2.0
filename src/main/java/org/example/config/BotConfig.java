@@ -9,11 +9,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 public class BotConfig {
-    private static DatabaseConfig dbConfig;
+    private static DatabaseConfig dbConfig = DatabaseConfig.getInstance();
     private final ObjectMapper mapper;
 
     public BotConfig() {
-        this.dbConfig = DatabaseConfig.getInstance();
+        
         this.mapper = new ObjectMapper();
         // Инициализация topic из config.json, если запись в БД отсутствует
         try (Connection conn = dbConfig.getConnection();
