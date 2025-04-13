@@ -83,10 +83,12 @@ public class Bot extends TelegramLongPollingBot {
     public String getBotUsername() {
         return "cu_algo_bot";
     }
-
+    // 8193864295:AAHG-uCB89lL4iiUGN3t0O3zogLGE2gIFPk - prod
+    // 7743800574:AAEcNPYS9TQGwRyChKs4ck0a6kJujksJUQw -local for tests
+    // плохая практика лучше так не делать а забить в .env
     @Override
     public String getBotToken() {
-        return "7743800574:AAEcNPYS9TQGwRyChKs4ck0a6kJujksJUQw";
+        return "8193864295:AAHG-uCB89lL4iiUGN3t0O3zogLGE2gIFPk";
     }
 
     @Override
