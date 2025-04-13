@@ -25,31 +25,35 @@ public class Manager {
     public JsonNode matchTask(Long xp_points) throws IOException, InterruptedException {
         String taskDifficulty;
         if (xp_points < 1000) {
-            taskDifficulty = "EASY";
+            taskDifficulty = "Easy";
         } else if (xp_points < 2000) {
-            taskDifficulty = "MEDIUM";
+            taskDifficulty = "Medium";
         } else {
-            taskDifficulty = "HARD";
+            taskDifficulty = "Hard";
         }
         String topic = BotConfig.getTopic();
+        System.out.println("Matching task for topic: " + topic + ", difficulty: " + taskDifficulty);
 
-        // Получаем общее количество задач (примерное значение, так как API не дает точного total)
-        JsonNode problemsResponse = client.getProblemsAsJson(1, topic, 0, taskDifficulty);
+        // Получаем задачи с минимальным лимитом, чтобы проверить наличие
+        JsonNode problemsResponse = client.getProblemsAsJson(10, topic, 0, null);
         JsonNode questions = problemsResponse.path("data").path("problemsetQuestionList").path("questions");
 
-        // Так как totalQuestions нет, используем большой skip для случайности
-        int maxSkip = 1000; // Примерное максимальное значение, можно уточнить
-        int randomSkip = (int) (Math.random() * maxSkip);
-
-        // Получаем одну случайную задачу
-        JsonNode randomProblemResponse = client.getProblemsAsJson(1, topic, randomSkip, taskDifficulty);
-        JsonNode problemList = randomProblemResponse.path("data").path("problemsetQuestionList").path("questions");
-
-        if (problemList.isArray() && problemList.size() > 0) {
-            return problemList.get(0); // Берем первую задачу из списка
-        } else {
-            throw new IOException("Не удалось найти подходящую задачу для темы " + topic + " и сложности " + taskDifficulty);
+        if (!questions.isArray() || questions.size() == 0) {
+            System.err.println("No tasks found for topic: " + topic + ", difficulty: " + taskDifficulty);
+            // Запасной вариант: пробуем без темы
+            problemsResponse = client.getProblemsAsJson(10, null, 0, null);
+            questions = problemsResponse.path("data").path("problemsetQuestionList").path("questions");
+            if (!questions.isArray() || questions.size() == 0) {
+                throw new IOException("Не удалось найти подходящую задачу для сложности " + taskDifficulty);
+            }
         }
+
+        // Выбираем случайную задачу из полученного списка
+        int randomIndex = (int) (Math.random() * questions.size());
+        JsonNode selectedTask = questions.get(randomIndex);
+        System.out.println("Selected task: " + selectedTask.toString());
+
+        return selectedTask;
     }
 
     public String getPeerTelegramId(String league) {
@@ -61,14 +65,13 @@ public class Manager {
                 .toList();
 
         if (activeUsers.isEmpty()) return null;
-        int random = (int) (Math.random() * users.size());
-        return users.get(random).getTelegramId();
+        int random = (int) (Math.random() * activeUsers.size());
+        return activeUsers.get(random).getTelegramId();
     }
 
     public void initialAssessment(String leetcodeUsername) throws IOException, InterruptedException {
         JsonNode solvedProblems = client.getUserSolvedProblemsAsJson(leetcodeUsername);
 
-        // Проверка структуры ответа
         JsonNode submitStats = solvedProblems.path("data").path("matchedUser").path("submitStats").path("acSubmissionNum");
         if (submitStats.isMissingNode() || !submitStats.isArray()) {
             throw new IOException("Не удалось получить статистику решенных задач для " + leetcodeUsername);

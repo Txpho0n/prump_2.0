@@ -10,35 +10,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UserDaoImpl implements UserDao, DaoInterface {
+public class UserDaoImpl implements UserDao {
 
     private final Connection connection;
 
-    @Override
-    public void createTableIfNotExists() {
-        String schemaPath = "src/main/resources/sql/users_schema.sql"; // Путь к файлу с SQL-скриптом
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(schemaPath));
-             Statement stmt = connection.createStatement()) {
-
-            StringBuilder sql = new StringBuilder();
-            String line;
-
-            while ((line = reader.readLine()) != null) {
-                sql.append(line).append("\n");
-            }
-
-            stmt.executeUpdate(sql.toString());
-            System.out.println("✅ Таблица users проверена/создана!");
-
-        } catch (SQLException | IOException e) {
-            System.out.println("⚠ Ошибка при создании таблицы users: " + e.getMessage());
-        }
-    }
 
     public UserDaoImpl(Connection connection) throws IOException {
         this.connection = connection;
-        createTableIfNotExists();
     }
 
     @Override

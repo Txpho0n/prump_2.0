@@ -1,4 +1,5 @@
-import org.example.Bot;
+package org.example;
+
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 

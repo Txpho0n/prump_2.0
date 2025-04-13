@@ -12,34 +12,13 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-public class InterviewDaoImpl implements InterviewDao, DaoInterface {
+public class InterviewDaoImpl implements InterviewDao {
     private final Connection connection;
 
-    @Override
-    public void createTableIfNotExists() {
-        String schemaPath = "src/main/resources/sql/interviews_schema.sql"; // Путь к файлу с SQL-скриптом
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(schemaPath));
-             Statement stmt = connection.createStatement()) {
-
-            StringBuilder sql = new StringBuilder();
-            String line;
-
-            while ((line = reader.readLine()) != null) {
-                sql.append(line).append("\n");
-            }
-
-            stmt.executeUpdate(sql.toString());
-            System.out.println("✅ Таблица interviews проверена/создана!");
-
-        } catch (SQLException | IOException e) {
-            System.out.println("⚠ Ошибка при создании таблицы interviews: " + e.getMessage());
-        }
-    }
 
     public InterviewDaoImpl(Connection connection) {
         this.connection = connection;
-        createTableIfNotExists();
     }
 
     @Override
@@ -84,6 +63,18 @@ public class InterviewDaoImpl implements InterviewDao, DaoInterface {
         }
         return null;
     }
+
+
+    public void deleteInterview(Long id) {
+        try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM interviews WHERE id = ?")) {
+            stmt.setLong(1, id);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to delete interview: " + e.getMessage());
+        }
+    }
+
+
     public void updateInterview(Interview interview) {
         String sql = "UPDATE interviews SET partner1_id = ?, partner2_id = ?, task_user1 = ?, task_user2 = ?, start_time = ?, end_time = ? WHERE id = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {

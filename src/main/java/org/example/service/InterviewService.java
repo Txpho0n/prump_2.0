@@ -7,6 +7,8 @@ import org.example.model.User;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -60,5 +62,9 @@ public class InterviewService {
 
     public List<Interview> getAllInterviews() {
         return interviewDao.getAllInterviews();
+    }
+
+    public void deleteInterview(Long id) {
+        interviewDao.deleteInterview(id);
     }
 }

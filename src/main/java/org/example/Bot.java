@@ -2,6 +2,7 @@ package org.example;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.example.config.BotConfig;
 import org.example.config.DatabaseConfig;
 import org.example.keyboards.KeyboardUtils;
 import org.example.model.Interview;
@@ -11,7 +12,6 @@ import org.example.service.InterviewService;
 import org.example.service.UserService;
 import org.example.util.LeetCodeUtil;
 import org.example.util.Manager;
-import org.example.config.BotConfig;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -20,11 +20,6 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.ApiResponse;
-import org.telegram.telegrambots.meta.bots.AbsSender;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException;
 import org.telegram.telegrambots.meta.updateshandlers.SentCallback;
 
@@ -37,27 +32,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-
-/*
-TODO: многопоточные штуки
-напоминалка
-проверка сделанных задач и прибавление очков
-
-TODO: добавить больше оформления
-по типу доделать чтобы менюшка комфортная была
-чтобы были видные команды с которыми можно взаимодействовать
-
-админу надо сделать пару команд
-чтобы он мог менять топик
-
-чтобы чел мог стату свою какую-то видеть(фича)
-
-
-TODO: Docker и прочее настроить
-
-
- */
-
 enum BotState {
     START,
     MAIN_MENU,
@@ -66,7 +40,6 @@ enum BotState {
     AWAITING_ADMIN_TOPIC,
     AWAITING_LEETCODE_USERNAME
 }
-
 
 public class Bot extends TelegramLongPollingBot {
     private final UserService userService;
@@ -121,6 +94,7 @@ public class Bot extends TelegramLongPollingBot {
         long chatId = update.hasMessage() ? update.getMessage().getChatId() : update.getCallbackQuery().getMessage().getChatId();
         String telegramId = String.valueOf(chatId);
         userStates.putIfAbsent(telegramId, BotState.START);
+        System.out.println("User " + telegramId + " state: " + userStates.get(telegramId)); // Лог состояния
 
         try {
             if (update.hasMessage() && update.getMessage().hasText()) {
@@ -137,6 +111,7 @@ public class Bot extends TelegramLongPollingBot {
         String messageText = update.getMessage().getText();
         String chatId = String.valueOf(update.getMessage().getChatId());
         BotState state = userStates.get(chatId);
+        System.out.println("Handling message: " + messageText + ", state: " + state); // Лог команды и состояния
 
         switch (messageText) {
             case "/start":
@@ -160,12 +135,15 @@ public class Bot extends TelegramLongPollingBot {
                 break;
 
             case "/interview":
+                System.out.println("Пользователь " + chatId + " запросил интервью, текущее состояние: " + state);
                 if (state == BotState.MAIN_MENU) {
                     if (userService.isActive(chatId)) {
                         startInterview(chatId);
                     } else {
                         sendMessage(chatId, "Вы деактивированы. Используйте /activate, чтобы участвовать в интервью.");
                     }
+                } else {
+                    sendMessage(chatId, "Сначала завершите регистрацию или вернитесь в главное меню с помощью /start.");
                 }
                 break;
 
@@ -199,6 +177,11 @@ public class Bot extends TelegramLongPollingBot {
                 }
                 break;
 
+            case "/reset":
+                userStates.put(chatId, BotState.MAIN_MENU);
+                sendMessage(chatId, "Состояние сброшено. Вы в главном меню.");
+                break;
+
             default:
                 if (state == BotState.AWAITING_LEETCODE_USERNAME) {
                     String leetCodeUsername = messageText.trim();
@@ -208,12 +191,15 @@ public class Bot extends TelegramLongPollingBot {
                         User user = userService.getUserById(chatId);
                         String response = "✅ Рейтинг рассчитан!\nТвой XP: " + user.getXp();
                         sendMessage(chatId, response);
+                        showMainMenu(chatId, update.getMessage()); // Переход в MAIN_MENU
                         userStates.put(chatId, BotState.MAIN_MENU);
                     } catch (IOException e) {
                         sendMessage(chatId, "❌ Ошибка: Проверь правильность LeetCode username");
                     } catch (Exception e) {
                         handleError(chatId, "Ошибка обработки", e);
                     }
+                } else {
+                    sendMessage(chatId, "Неизвестная команда. Используйте /help для списка команд.");
                 }
                 break;
         }
@@ -239,12 +225,26 @@ public class Bot extends TelegramLongPollingBot {
         }
 
         String currentTopic = BotConfig.getTopic();
-        JsonNode task1 = manager.matchTask(user1.getXp());
-        JsonNode task2 = manager.matchTask(user2.getXp());
+        JsonNode task1 = null;
+        JsonNode task2 = null;
+        try {
+            task1 = manager.matchTask(user1.getXp());
+            task2 = manager.matchTask(user2.getXp());
+        } catch (IOException e) {
+            System.err.println("Failed to match tasks: " + e.getMessage());
+            sendMessage(chatId, "Не удалось подобрать задачи для интервью. Попробуйте позже или смените тему через /settopic.");
+            return;
+        }
+
         String task1Slug = task1.get("titleSlug").asText();
         String task2Slug = task2.get("titleSlug").asText();
         String task1Difficulty = task1.get("difficulty").asText();
         String task2Difficulty = task2.get("difficulty").asText();
+        String task1Title = task1.has("title") ? task1.get("title").asText() : task1Slug;
+        String task2Title = task2.has("title") ? task2.get("title").asText() : task2Slug;
+
+        String task1Url = "https://leetcode.com/problems/" + task1Slug + "/";
+        String task2Url = "https://leetcode.com/problems/" + task2Slug + "/";
 
         Interview interview = new Interview(
                 null, chatId, partnerId, task1Slug, task2Slug, null, null
@@ -259,8 +259,78 @@ public class Bot extends TelegramLongPollingBot {
 
         pendingInterviews.put(chatId, interview);
 
-        sendMessage(chatId, "Ваш партнер: @" + user2.getTgUsername() + "\nВаша задача: " + task1Slug);
-        sendMessage(partnerId, "Ваш партнер: @" + user1.getTgUsername() + "\nВаша задача: " + task2Slug);
+        // Инструкция для инициатора
+        String initiatorMessage = String.format(
+                "Ваш партнер: @%s\n" +
+                        "Ваша задача: [%s](%s) (%s)\n\n" +
+                        "📌 Свяжитесь с @%s в Telegram, чтобы обсудить детали.\n" +
+                        "Выберите дату и время интервью через календарь ниже.\n" +
+                        "Если хотите отменить интервью, используйте /cancel_interview.",
+                user2.getTgUsername(), task1Title, task1Url, task1Difficulty,
+                user2.getTgUsername()
+        );
+
+        // Инструкция для партнёра
+        String partnerMessage = String.format(
+                "Ваш партнер: @%s начал интервью!\n" +
+                        "Ваша задача: [%s](%s) (%s)\n\n" +
+                        "📌 Свяжитесь с @%s в Telegram, чтобы обсудить детали.\n" +
+                        "@%s выберет дату и время интервью, вы получите уведомление.\n" +
+                        "Если хотите отменить интервью, используйте /cancel_interview.",
+                user1.getTgUsername(), task2Title, task2Url, task2Difficulty,
+                user1.getTgUsername(), user1.getTgUsername()
+        );
+
+        SendMessage message1 = new SendMessage();
+        message1.setChatId(chatId);
+        message1.setText(initiatorMessage);
+        message1.enableMarkdown(true);
+
+        SendMessage message2 = new SendMessage();
+        message2.setChatId(partnerId);
+        message2.setText(partnerMessage);
+        message2.enableMarkdown(true);
+
+        try {
+            executeAsync(message1, new SentCallback<Message>() {
+                @Override
+                public void onResult(BotApiMethod<Message> botApiMethod, Message message) {
+                    System.out.println("Message sent to " + chatId + ": " + initiatorMessage);
+                }
+
+                @Override
+                public void onError(BotApiMethod<Message> botApiMethod, TelegramApiRequestException e) {
+                    System.err.println("Telegram API error sending message to " + chatId + ": " + e.getApiResponse());
+                }
+
+                @Override
+                public void onException(BotApiMethod<Message> botApiMethod, Exception e) {
+                    System.err.println("Exception sending message to " + chatId + ": " + e.getMessage());
+                }
+            });
+
+            executeAsync(message2, new SentCallback<Message>() {
+                @Override
+                public void onResult(BotApiMethod<Message> botApiMethod, Message message) {
+                    System.out.println("Message sent to " + partnerId + ": " + partnerMessage);
+                }
+
+                @Override
+                public void onError(BotApiMethod<Message> botApiMethod, TelegramApiRequestException e) {
+                    System.err.println("Telegram API error sending message to " + partnerId + ": " + e.getApiResponse());
+                }
+
+                @Override
+                public void onException(BotApiMethod<Message> botApiMethod, Exception e) {
+                    System.err.println("Exception sending message to " + partnerId + ": " + e.getMessage());
+                }
+            });
+            Thread.sleep(50);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (TelegramApiException e) {
+            System.err.println("Failed to initiate message sending: " + e.getMessage());
+        }
 
         showDatePicker(chatId, LocalDate.now());
         userStates.put(chatId, BotState.AWAITING_INTERVIEW_DATE);
@@ -277,20 +347,21 @@ public class Bot extends TelegramLongPollingBot {
                 User user = userService.getUserById(chatId);
                 String status = userService.isActive(chatId) ? "активен" : "деактивирован";
                 sendMessage(chatId, buildWelcomeMessage(user) + "\nСтатус: " + status);
+                sendMessage(chatId, "Добро пожаловать! Выберите действие:\n/interview - начать интервью\n/help - помощь\n" +
+                        "/deactivate - отключить участие\n/activate - включить участие");
+                userStates.put(chatId, BotState.MAIN_MENU); // Явно устанавливаем MAIN_MENU
             }
         } catch (Exception e) {
             handleError(chatId, "Ошибка при старте", e);
         }
-        sendMessage(chatId, "Добро пожаловать! Выберите действие:\n/interview - начать интервью\n/help - помощь\n" +
-                "/deactivate - отключить участие\n/activate - включить участие");
     }
 
-    private void showDatePicker(String chatId, LocalDate date) throws TelegramApiException {
+    private void showDatePicker(String chatId, LocalDate startDate) throws TelegramApiException {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
-        message.setText("Выберите дату интервью:");
+        message.setText("Выберите дату интервью (не ранее сегодняшнего дня):");
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> keyboard = keyboardUtils.buildCalendar(date);
+        List<List<InlineKeyboardButton>> keyboard = keyboardUtils.buildCalendar(startDate);
         markup.setKeyboard(keyboard);
         message.setReplyMarkup(markup);
         execute(message);
@@ -342,11 +413,23 @@ public class Bot extends TelegramLongPollingBot {
         try {
             if (state == BotState.AWAITING_INTERVIEW_DATE && callbackData.startsWith("date_")) {
                 String dateStr = callbackData.split("_")[1];
-                showTimePicker(chatId, LocalDate.parse(dateStr));
+                LocalDate selectedDate = LocalDate.parse(dateStr);
+                LocalDate today = LocalDate.now();
+                if (selectedDate.isBefore(today)) {
+                    sendMessage(telegramId, "Нельзя выбрать дату в прошлом. Пожалуйста, выберите сегодняшнюю или будущую дату.");
+                    showDatePicker(telegramId, today);
+                    return;
+                }
+                showTimePicker(chatId, selectedDate);
                 userStates.put(telegramId, BotState.AWAITING_INTERVIEW_TIME);
             } else if (state == BotState.AWAITING_INTERVIEW_TIME && callbackData.startsWith("time_")) {
                 String[] parts = callbackData.split("_");
                 LocalDateTime dateTime = LocalDate.parse(parts[1]).atTime(Integer.parseInt(parts[2].split(":")[0]), 0);
+                if (dateTime.isBefore(LocalDateTime.now())) {
+                    sendMessage(telegramId, "Нельзя выбрать время в прошлом. Пожалуйста, выберите другое время.");
+                    showTimePicker(chatId, LocalDate.parse(parts[1]));
+                    return;
+                }
 
                 Interview interview = pendingInterviews.get(telegramId);
                 if (interview == null) {
@@ -388,13 +471,13 @@ public class Bot extends TelegramLongPollingBot {
                 String.valueOf(message.getFrom().getId()),
                 null,
                 0L,
-                "EASY",
+                "Easy",
                 fullName,
                 null,
                 null,
                 null,
                 false,
-                true // Новый пользователь по умолчанию активен
+                true
         );
     }
 
@@ -428,7 +511,6 @@ public class Bot extends TelegramLongPollingBot {
             Thread.currentThread().interrupt();
         } catch (TelegramApiException e) {
             System.err.println("Failed to initiate message sending to " + chatId + ": " + e.getMessage());
-            throw new RuntimeException(e);
         }
     }
 
@@ -442,45 +524,10 @@ public class Bot extends TelegramLongPollingBot {
         scheduler.shutdown();
     }
 
-
-
     private void loadCurrentTopic() {
         String topic = BotConfig.getTopic();
         if (!availableTopics.contains(topic)) {
             BotConfig.setTopic("Arrays");
         }
     }
-
-
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

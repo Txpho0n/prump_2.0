@@ -24,7 +24,7 @@ public class LeetCodeApiDemo {
             System.out.println();
 
             System.out.println("===== FILTERED PROBLEMS =====");
-            String problems = String.valueOf(client.getProblemsAsJson(1, "binary-search", 20, "EASY"));
+            String problems = String.valueOf(client.getProblemsAsJson(1, "binary-search", 20, "Easy"));
             System.out.println(problems);
 
         } catch (IOException e) {

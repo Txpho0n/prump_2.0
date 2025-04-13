@@ -176,11 +176,11 @@ public class BotScheduler {
     // Определение лиги по XP
     private String determineLeague(long xp) {
         if (xp < 700) {
-            return "EASY";
+            return "Easy";
         } else if (xp <= 1800) {
-            return "MEDIUM";
+            return "Medium";
         } else {
-            return "HARD";
+            return "Hard";
         }
     }
 
