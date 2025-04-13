@@ -1,20 +1,11 @@
-# Базовый образ с Java 17
-FROM openjdk:17-jdk-slim
-
-# Устанавливаем рабочую директорию
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
 WORKDIR /app
-
-# Копируем файлы сборки Maven
 COPY pom.xml .
 COPY src ./src
+RUN mvn clean package -DskipTests
+RUN ls -l /app/target/  # Для отладки
 
-
-# Устанавливаем Maven и собираем проект
-RUN apt-get update && apt-get install -y maven && mvn clean package
-
-# Копируем собранный JAR-файл
+FROM openjdk:17-jdk-slim
+WORKDIR /app
 COPY --from=builder /app/target/algo_train.jar app.jar
-
-
-# Команда для запуска приложения
 ENTRYPOINT ["java", "-jar", "app.jar"]
