@@ -1,51 +1,58 @@
 package org.example.config;
 
-import org.json.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Properties;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 
 public class BotConfig {
-    private static final String CONFIG_JSON = "src/main/resources/config.json";
-    private static final String CONFIG_PROPERTIES = "config.properties";
+    private final DatabaseConfig dbConfig;
+    private final ObjectMapper mapper;
 
-    // Для токена
-    public String getBotToken() {
-        Properties properties = new Properties();
-        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(CONFIG_PROPERTIES)) {
-            if (inputStream == null) {
-                throw new RuntimeException("Файл " + CONFIG_PROPERTIES + " не найден в ресурсах");
+    public BotConfig() {
+        this.dbConfig = DatabaseConfig.getInstance();
+        this.mapper = new ObjectMapper();
+        // Инициализация topic из config.json, если запись в БД отсутствует
+        try (Connection conn = dbConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement("SELECT value FROM config WHERE key = ?")) {
+            stmt.setString(1, "topic");
+            ResultSet rs = stmt.executeQuery();
+            if (!rs.next()) {
+                // Если topic нет в БД, читаем из config.json
+                String initialTopic = "Array";
+                setTopic(initialTopic);
             }
-            properties.load(inputStream);
-            return properties.getProperty("TOKEN");
         } catch (Exception e) {
-            throw new RuntimeException("Ошибка чтения конфига", e);
+            throw new RuntimeException("Ошибка инициализации config", e);
         }
     }
 
-    // Для темы
-    public static String getTopic() {
-        try {
-            String content = Files.readString(Paths.get(CONFIG_JSON), StandardCharsets.UTF_8);
-            JSONObject jsonObject = new JSONObject(content);
-            System.out.println(jsonObject.getString("currentTopic"));
-            return jsonObject.getString("currentTopic");
+
+    public String getTopic() {
+        try (Connection conn = dbConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement("SELECT value FROM config WHERE key = ?")) {
+            stmt.setString(1, "topic");
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("value");
+            }
+            throw new RuntimeException("Topic не найден в БД");
         } catch (Exception e) {
             throw new RuntimeException("Ошибка чтения темы", e);
         }
     }
 
-    public static void setTopic(String newTopic) {
-        try {
-            String content = Files.readString(Paths.get(CONFIG_JSON), StandardCharsets.UTF_8);
-            JSONObject jsonObject = new JSONObject(content);
-            jsonObject.put("currentTopic", newTopic);
-
-            Files.writeString(Paths.get(CONFIG_JSON), jsonObject.toString(4), StandardCharsets.UTF_8);
+    public void setTopic(String newTopic) {
+        try (Connection conn = dbConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                     "INSERT INTO config (key, value) VALUES (?, ?) " +
+                     "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value")) {
+            stmt.setString(1, "topic");
+            stmt.setString(2, newTopic);
+            stmt.executeUpdate();
         } catch (Exception e) {
             throw new RuntimeException("Ошибка записи темы", e);
         }
