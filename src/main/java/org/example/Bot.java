@@ -207,6 +207,12 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
+
+    public static String escapeMarkdownV2(String text) {
+        if (text == null) return "";
+        return text.replaceAll("([_*\$$ \ $$()~`>#+=|{}.!\\\\-])", "\\\\$1");
+    }
+
     private void startInterview(String chatId) throws TelegramApiException, IOException, InterruptedException {
         User user1 = userService.getUserById(chatId);
         if (user1 == null) {
@@ -238,18 +244,18 @@ public class Bot extends TelegramLongPollingBot {
             return;
         }
 
-        String task1Slug = task1.get("titleSlug").asText();
-        String task2Slug = task2.get("titleSlug").asText();
-        String task1Difficulty = task1.get("difficulty").asText();
-        String task2Difficulty = task2.get("difficulty").asText();
-        String task1Title = task1.has("title") ? task1.get("title").asText() : task1Slug;
-        String task2Title = task2.has("title") ? task2.get("title").asText() : task2Slug;
-
+        String task1Slug = escapeMarkdownV2(task1.get("titleSlug").asText());
+        String task2Slug = escapeMarkdownV2(task2.get("titleSlug").asText());
+        String task1Difficulty = escapeMarkdownV2(task1.get("difficulty").asText());
+        String task2Difficulty = escapeMarkdownV2(task2.get("difficulty").asText());
+        String task1Title = escapeMarkdownV2(task1.has("title") ? task1.get("title").asText() : task1Slug);
+        String task2Title =escapeMarkdownV2( task2.has("title") ? task2.get("title").asText() : task2Slug);
+        System.out.println(task1Slug + " " + task1Difficulty + " " + task1Title);
         String task1Url = "https://leetcode.com/problems/" + task1Slug + "/";
         String task2Url = "https://leetcode.com/problems/" + task2Slug + "/";
 
         Interview interview = new Interview(
-                null, chatId, partnerId, task1Slug, task2Slug, null, null
+                null, chatId, partnerId, task1Slug, task2Slug, LocalDateTime.now().plusDays(7), LocalDateTime.now().plusDays(7).plusHours(1)
         );
 
         Long generatedId = interviewService.scheduleInterview(interview);
