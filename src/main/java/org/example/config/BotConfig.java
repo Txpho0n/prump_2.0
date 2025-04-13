@@ -9,7 +9,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 public class BotConfig {
-    private final DatabaseConfig dbConfig;
+    private static final DatabaseConfig dbConfig;
     private final ObjectMapper mapper;
 
     public BotConfig() {
