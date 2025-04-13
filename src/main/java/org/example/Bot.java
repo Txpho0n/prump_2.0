@@ -264,29 +264,23 @@ public class Bot extends TelegramLongPollingBot {
         pendingInterviews.put(chatId, interview);
 
         // Инструкция для инициатора
-        String initiatorMessage = String.format(
-                "Ваш партнер: @%s\n" +
-                        "Ваша задача: [%s](%s) (%s)\n\n" +
-                        "📌 Свяжитесь с @%s в Telegram, чтобы обсудить детали.\n" +
+        String initiatorMessage =
+                "Ваш партнер: @" + user2.getTgUsername() + "\n" +
+                        "Задача которую вы будете проверять: " + task1Url + "\n" +
+                        "📌 Свяжитесь с " + user2.getTgUsername() + " в Telegram, чтобы обсудить детали.\n" +
                         "Выберите дату и время интервью через календарь ниже.\n\n"+
                         "Инструкция про то как подготовиться к интервью - https://teletype.in/@sidnevart_cu/SUcyzdPmr62 \n" +
-                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt",
+                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt";
 
-                user2.getTgUsername(), task1Title, task1Url, task1Difficulty,
-                user2.getTgUsername()
-        );
 
         // Инструкция для партнёра
-        String partnerMessage = String.format(
-                "Ваш партнер: @%s начал интервью!\n" +
-                        "Ваша задача: [%s](%s) (%s)\n\n" +
-                        "📌 Свяжитесь с @%s в Telegram, чтобы обсудить детали.\n" +
-                        "@%s выберет дату и время интервью, вы получите уведомление.\n\n"+
+        String partnerMessage =
+                "Ваш партнер: @" + user1.getTgUsername() + "\n" +
+                        "Задача которую вы будете проверять: " + task2Url + "\n" +
+                        "📌 Свяжитесь с " + user1.getTgUsername() + " в Telegram, чтобы обсудить детали.\n" +
+                        "@"+user1.getTgUsername()+" выберет дату"+"\n\n"+
                         "Инструкция про то как подготовиться к интервью - https://teletype.in/@sidnevart_cu/SUcyzdPmr62 \n" +
-                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt",
-                user1.getTgUsername(), task2Title, task2Url, task2Difficulty,
-                user1.getTgUsername(), user1.getTgUsername()
-        );
+                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt";
 
         SendMessage message1 = new SendMessage();
         message1.setParseMode("MarkdownV2");
