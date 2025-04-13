@@ -18,8 +18,8 @@ CREATE TABLE interviews (
                             id SERIAL PRIMARY KEY,
                             partner1_id VARCHAR(50) REFERENCES users(telegram_id),
                             partner2_id VARCHAR(50) REFERENCES users(telegram_id),
-                            task1_slug VARCHAR(255),
-                            task2_slug VARCHAR(255),
+                            task_user1 VARCHAR(255),
+                            task_user2 VARCHAR(255),
                             start_time TIMESTAMP,
                             end_time TIMESTAMP
 );
