@@ -283,7 +283,6 @@ public class Bot extends TelegramLongPollingBot {
                         "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt";
 
         SendMessage message1 = new SendMessage();
-        message1.setParseMode("MarkdownV2");
         message1.setChatId(chatId);
         message1.setText(initiatorMessage);
         message1.enableMarkdown(true);
