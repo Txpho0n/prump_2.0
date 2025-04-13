@@ -31,7 +31,7 @@ public class BotConfig {
     }
 
 
-    public String getTopic() {
+    public static String getTopic() {
         try (Connection conn = dbConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement("SELECT value FROM config WHERE key = ?")) {
             stmt.setString(1, "topic");
@@ -45,7 +45,7 @@ public class BotConfig {
         }
     }
 
-    public void setTopic(String newTopic) {
+    public static void setTopic(String newTopic) {
         try (Connection conn = dbConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
                      "INSERT INTO config (key, value) VALUES (?, ?) " +
