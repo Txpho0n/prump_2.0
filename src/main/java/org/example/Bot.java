@@ -285,12 +285,10 @@ public class Bot extends TelegramLongPollingBot {
         SendMessage message1 = new SendMessage();
         message1.setChatId(chatId);
         message1.setText(initiatorMessage);
-        message1.enableMarkdown(true);
 
         SendMessage message2 = new SendMessage();
         message2.setChatId(partnerId);
         message2.setText(partnerMessage);
-        message2.enableMarkdown(true);
 
         try {
             executeAsync(message1, new SentCallback<Message>() {
