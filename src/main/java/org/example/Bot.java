@@ -131,7 +131,7 @@ public class Bot extends TelegramLongPollingBot {
             case "/help":
                 sendMessage(chatId, "Команды:\n/start - начать\n/help - помощь\n/interview - новое интервью\n" +
                         "/deactivate - отключить участие в интервью\n/activate - включить участие в интервью\n" +
-                        "/settopic - сменить тему (админ)");
+                        "/settopic - сменить тему (админ)\n\nОбязательно ознакомьтесь с инструкцией по подготовке к мок-интервью: https://teletype.in/@sidnevart_cu/SUcyzdPmr62\nИ с инструкцией по тому что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt");
                 break;
 
             case "/interview":
@@ -214,13 +214,13 @@ public class Bot extends TelegramLongPollingBot {
 
         String partnerId = manager.getPeerTelegramId(user1.getLeague());
         if (partnerId == null || partnerId.equals(chatId)) {
-            sendMessage(chatId, "Ошибка: не удалось найти другого активного партнера. Попробуйте позже.");
+            sendMessage(chatId, "Ошибка: Попробуйте через минуту.");
             return;
         }
 
         User user2 = userService.getUserById(partnerId);
         if (user2 == null || !userService.isActive(partnerId)) {
-            sendMessage(chatId, "Ошибка: партнер не найден или не активен.");
+            sendMessage(chatId, "Ошибка: Попробуйте через минуту.");
             return;
         }
 
@@ -232,7 +232,7 @@ public class Bot extends TelegramLongPollingBot {
             task2 = manager.matchTask(user2.getXp());
         } catch (IOException e) {
             System.err.println("Failed to match tasks: " + e.getMessage());
-            sendMessage(chatId, "Не удалось подобрать задачи для интервью. Попробуйте позже или смените тему через /settopic.");
+            sendMessage(chatId, "Не удалось подобрать задачи для интервью. Попробуйте позже!");
             return;
         }
 
@@ -264,8 +264,10 @@ public class Bot extends TelegramLongPollingBot {
                 "Ваш партнер: @%s\n" +
                         "Ваша задача: [%s](%s) (%s)\n\n" +
                         "📌 Свяжитесь с @%s в Telegram, чтобы обсудить детали.\n" +
-                        "Выберите дату и время интервью через календарь ниже.\n" +
-                        "Если хотите отменить интервью, используйте /cancel_interview.",
+                        "Выберите дату и время интервью через календарь ниже.\n\n"+
+                        "Инструкция про то как подготовиться к интервью - https://teletype.in/@sidnevart_cu/SUcyzdPmr62 \n" +
+                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt",
+
                 user2.getTgUsername(), task1Title, task1Url, task1Difficulty,
                 user2.getTgUsername()
         );
@@ -275,8 +277,9 @@ public class Bot extends TelegramLongPollingBot {
                 "Ваш партнер: @%s начал интервью!\n" +
                         "Ваша задача: [%s](%s) (%s)\n\n" +
                         "📌 Свяжитесь с @%s в Telegram, чтобы обсудить детали.\n" +
-                        "@%s выберет дату и время интервью, вы получите уведомление.\n" +
-                        "Если хотите отменить интервью, используйте /cancel_interview.",
+                        "@%s выберет дату и время интервью, вы получите уведомление.\n\n"+
+                        "Инструкция про то как подготовиться к интервью - https://teletype.in/@sidnevart_cu/SUcyzdPmr62 \n" +
+                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt",
                 user1.getTgUsername(), task2Title, task2Url, task2Difficulty,
                 user1.getTgUsername(), user1.getTgUsername()
         );
