@@ -1,5 +1,6 @@
 package org.example.dao;
 
+import org.example.config.DatabaseConfig;
 import org.example.model.User;
 
 import java.io.BufferedReader;
@@ -12,19 +13,20 @@ import java.util.List;
 
 public class UserDaoImpl implements UserDao {
 
-    private final Connection connection;
+    private static DatabaseConfig dbConfig;
 
 
 
-    public UserDaoImpl(Connection connection) throws IOException {
-        this.connection = connection;
+
+    public UserDaoImpl(DatabaseConfig dbConfig) {
+        this.dbConfig = dbConfig;
     }
 
     @Override
     public void registerUser(User user) {
         String sql = "INSERT INTO users (telegram_id, tg_username, xp, full_name, last_mock_interview, last_solved_task_timestamp, registration_date, is_admin) "
                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, user.getTelegramId());
             stmt.setString(2, user.getTgUsername());
             stmt.setLong(3, user.getXp());
@@ -46,13 +48,15 @@ public class UserDaoImpl implements UserDao {
 
         } catch (SQLException e) {
             e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     @Override
     public User getUserById(String telegram_id) {
         String sql = "SELECT * FROM users WHERE telegram_id = ?";
-        try(PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try(Connection connection = dbConfig.getConnection();PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, telegram_id);
             ResultSet rs = stmt.executeQuery();
             if(rs.next()){
@@ -78,6 +82,8 @@ public class UserDaoImpl implements UserDao {
             }
         } catch (SQLException e){
             e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return null;
     }
@@ -85,7 +91,7 @@ public class UserDaoImpl implements UserDao {
     @Override
     public User getUserByLeetCodeUsername(String leetcodeUsername) {
         String sql = "SELECT * FROM users WHERE leetcode_username = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, leetcodeUsername);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -109,13 +115,15 @@ public class UserDaoImpl implements UserDao {
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return null;
     }
 
     public boolean isUserAdmin(String telegramId) {
         String sql = "SELECT is_admin FROM users WHERE telegram_id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, telegramId);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -123,6 +131,8 @@ public class UserDaoImpl implements UserDao {
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return false;
     }
@@ -130,7 +140,7 @@ public class UserDaoImpl implements UserDao {
     public boolean userExists(String telegramId) {
         String sql = "SELECT COUNT(*) FROM users WHERE telegram_id = ?";
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, telegramId);
 
             try (ResultSet rs = stmt.executeQuery()) {
@@ -142,6 +152,8 @@ public class UserDaoImpl implements UserDao {
 
         } catch (SQLException e) {
             e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return false;
     }
@@ -149,7 +161,7 @@ public class UserDaoImpl implements UserDao {
     @Override
     public void updateUserXP(String telegramId, Long new_xp) {
         String sql = "UPDATE users SET xp = ? WHERE telegram_id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setLong(1, new_xp);
             stmt.setString(2, telegramId);
             int affectedRows = stmt.executeUpdate();
@@ -161,49 +173,57 @@ public class UserDaoImpl implements UserDao {
             }
         } catch (SQLException e) {
             System.err.println("❌ Ошибка при обновлении XP: " + e.getMessage());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     @Override
     public void updateLastSolvedTaskTimestamp(String tg_username, LocalDateTime new_timestamp) {
         String sql = "UPDATE users SET last_solved_task_timestamp = ? WHERE tg_username = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)){
+        try (Connection connection = dbConfig.getConnection();PreparedStatement stmt = connection.prepareStatement(sql)){
             stmt.setTimestamp(1, Timestamp.valueOf(new_timestamp));
             stmt.setString(2, tg_username);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     @Override
     public void updateLeetCodeUsername(String telegramId, String leetcodeUsername) {
         String sql = "UPDATE users SET leetcode_username = ? WHERE telegram_id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, leetcodeUsername);
             stmt.setString(2, telegramId);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     @Override
     public void updateLastMockTimestamp(String tg_username, LocalDateTime new_timestamp) {
         String sql = "UPDATE users SET last_mock_interview = ? WHERE tg_username = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)){
+        try (Connection connection = dbConfig.getConnection();PreparedStatement stmt = connection.prepareStatement(sql)){
             stmt.setTimestamp(1, Timestamp.valueOf(new_timestamp));
             stmt.setString(2, tg_username);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     @Override
     public List<User> findUsersByGroup(String league) {
         String sql = "SELECT * FROM users WHERE league = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)){
+        try (Connection connection = dbConfig.getConnection();PreparedStatement stmt = connection.prepareStatement(sql)){
             stmt.setString(1, league);
             ResultSet rs = stmt.executeQuery();
             List<User> users = new ArrayList<>();
@@ -229,12 +249,14 @@ public class UserDaoImpl implements UserDao {
             return users;
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     public List<User> findAllUsers() {
         String sql = "SELECT * FROM users";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             ResultSet rs = ps.executeQuery();
             List<User> users = new ArrayList<>();
             while (rs.next()) {
@@ -261,23 +283,27 @@ public class UserDaoImpl implements UserDao {
             return users;
         } catch (SQLException e) {
             throw new RuntimeException("Error fetching all users", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     public void updateUserLeague(String telegramId, String league) {
         String sql = "UPDATE users SET league = ? WHERE telegram_id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, league);
             ps.setString(2, telegramId);
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Error updating user league", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     public String getUserLeague(String telegramId) {
         String sql = "SELECT league FROM users WHERE telegram_id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, telegramId);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
@@ -285,6 +311,8 @@ public class UserDaoImpl implements UserDao {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Error fetching user league", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return null;
     }
@@ -292,7 +320,7 @@ public class UserDaoImpl implements UserDao {
     public List<User> getAllUsers() {
         String sql = "SELECT * FROM users";
         List<User> users = new ArrayList<>();
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 users.add(new User(
@@ -315,24 +343,28 @@ public class UserDaoImpl implements UserDao {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Error fetching all users", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return users;
     }
     @Override
     public void setActive(String telegramId, boolean isActive) {
         String sql = "UPDATE users SET is_active = ? WHERE telegram_id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setBoolean(1, isActive);
             ps.setString(2, telegramId);
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Error updating user activity", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
     @Override
     public boolean isActive(String telegramId) {
         String sql = "SELECT is_active FROM users WHERE telegram_id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, telegramId);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
@@ -340,6 +372,8 @@ public class UserDaoImpl implements UserDao {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Error checking user activity", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return false;
     }

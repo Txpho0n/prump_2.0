@@ -13,8 +13,8 @@ public class UserService {
     private final UserDaoImpl userDao;
     private final DatabaseConfig databaseConfig = DatabaseConfig.getInstance();
 
-    public UserService(Connection connection) throws IOException {
-        this.userDao = new UserDaoImpl(connection);
+    public UserService() throws IOException {
+        this.userDao = new UserDaoImpl(databaseConfig);
     }
 
     public void registerUser(User user) {

@@ -3,6 +3,7 @@ package org.example.util;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.config.BotConfig;
+import org.example.config.DatabaseConfig;
 import org.example.dao.InterviewDaoImpl;
 import org.example.dao.UserDaoImpl;
 import org.example.model.User;
@@ -16,10 +17,11 @@ public class Manager {
     private final UserDaoImpl userDao;
     private final InterviewDaoImpl interviewDao;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final DatabaseConfig databaseConfig = DatabaseConfig.getInstance();
 
-    public Manager(Connection connection) throws IOException {
-        this.interviewDao = new InterviewDaoImpl(connection);
-        this.userDao = new UserDaoImpl(connection);
+    public Manager() throws IOException {
+        this.interviewDao = new InterviewDaoImpl(databaseConfig);
+        this.userDao = new UserDaoImpl(databaseConfig);
     }
 
     public JsonNode matchTask(Long xp_points) throws IOException, InterruptedException {

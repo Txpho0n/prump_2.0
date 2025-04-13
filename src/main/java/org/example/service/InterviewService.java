@@ -16,8 +16,8 @@ public class InterviewService {
     private final InterviewDaoImpl interviewDao;
     private final DatabaseConfig databaseConfig = DatabaseConfig.getInstance();
 
-    public InterviewService(Connection connection) throws IOException {
-        this.interviewDao = new InterviewDaoImpl(connection);
+    public InterviewService() throws IOException {
+        this.interviewDao = new InterviewDaoImpl(databaseConfig);
     }
 
     public void updateInterview(Interview interview) {

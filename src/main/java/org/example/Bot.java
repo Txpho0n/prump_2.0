@@ -70,9 +70,9 @@ public class Bot extends TelegramLongPollingBot {
 
     public Bot() throws Exception {
         Connection connection = DatabaseConfig.getInstance().getConnection();
-        this.interviewService = new InterviewService(connection);
-        this.userService = new UserService(connection);
-        this.manager = new Manager(connection);
+        this.interviewService = new InterviewService();
+        this.userService = new UserService();
+        this.manager = new Manager();
         this.keyboardUtils = new KeyboardUtils();
         this.leetCodeUtil = new LeetCodeUtil();
         this.scheduler = new BotScheduler(interviewService, userService, leetCodeUtil, manager, this::sendMessage);

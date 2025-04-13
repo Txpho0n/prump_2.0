@@ -1,5 +1,6 @@
 package org.example.dao;
 
+import org.example.config.DatabaseConfig;
 import org.example.model.Interview;
 import org.example.model.User;
 
@@ -13,19 +14,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class InterviewDaoImpl implements InterviewDao {
-    private final Connection connection;
+    private static DatabaseConfig dbConfig;
 
 
 
-    public InterviewDaoImpl(Connection connection) {
-        this.connection = connection;
+    public InterviewDaoImpl(DatabaseConfig dbConfig) {
+        this.dbConfig = dbConfig;
     }
 
     @Override
     public Long createMockInterview(Interview interview) {
         String sql = "INSERT INTO interviews (partner1_id, partner2_id, task_user1, task_user2, start_time, end_time) " +
                 "VALUES (?, ?, ?, ?, ?, ?) RETURNING id";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection(); PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, interview.getPartner1Id());
             ps.setString(2, interview.getPartner2Id());
             ps.setString(3, interview.getAssignedTaskForUser1());
@@ -38,12 +39,14 @@ public class InterviewDaoImpl implements InterviewDao {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Error saving interview", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return 0L;
     }
     public Interview getInterviewById(Long id) {
         String sql = "SELECT * FROM interviews WHERE id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setLong(1, id);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
@@ -60,24 +63,28 @@ public class InterviewDaoImpl implements InterviewDao {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка при получении интервью", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return null;
     }
 
 
     public void deleteInterview(Long id) {
-        try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM interviews WHERE id = ?")) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement stmt = connection.prepareStatement("DELETE FROM interviews WHERE id = ?")) {
             stmt.setLong(1, id);
             stmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete interview: " + e.getMessage());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
 
     public void updateInterview(Interview interview) {
         String sql = "UPDATE interviews SET partner1_id = ?, partner2_id = ?, task_user1 = ?, task_user2 = ?, start_time = ?, end_time = ? WHERE id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, interview.getPartner1Id());
             ps.setString(2, interview.getPartner2Id());
             ps.setString(3, interview.getAssignedTaskForUser1());
@@ -88,19 +95,23 @@ public class InterviewDaoImpl implements InterviewDao {
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Error updating interview", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     @Override
     public void assignTasksToUsers(Interview interview) {
         String sql = "UPDATE interviews SET task_user1 = ?, task_user2 = ? WHERE id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, interview.getAssignedTaskForUser1());
             ps.setString(2, interview.getAssignedTaskForUser2());
             ps.setLong(3, interview.getId());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка при назначении задач", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -117,7 +128,7 @@ public class InterviewDaoImpl implements InterviewDao {
     @Override
     public String getUser1(Interview interview) {
         String sql = "SELECT partner1_id FROM interviews WHERE id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setLong(1, interview.getId());
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
@@ -125,6 +136,8 @@ public class InterviewDaoImpl implements InterviewDao {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка при получении пользователя 1", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return "";
     }
@@ -132,7 +145,7 @@ public class InterviewDaoImpl implements InterviewDao {
     @Override
     public String getUser2(Interview interview) {
         String sql = "SELECT partner2_id FROM interviews WHERE id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setLong(1, interview.getId());
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
@@ -140,6 +153,8 @@ public class InterviewDaoImpl implements InterviewDao {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка при получении пользователя 2", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return "";
     }
@@ -147,7 +162,7 @@ public class InterviewDaoImpl implements InterviewDao {
 
     public List<Interview> getInterviewsByDate(LocalDate date) {
         String sql = "SELECT * FROM interviews WHERE start_time >= ? AND start_time < ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             LocalDateTime startOfDay = date.atStartOfDay();
             LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
             ps.setTimestamp(1, Timestamp.valueOf(startOfDay));
@@ -168,6 +183,8 @@ public class InterviewDaoImpl implements InterviewDao {
             return interviews;
         } catch (SQLException e) {
             throw new RuntimeException("Error fetching interviews by date", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -175,7 +192,7 @@ public class InterviewDaoImpl implements InterviewDao {
     public List<Interview> plannedInterviews(User user) {
         List<Interview> interviews = new ArrayList<>();
         String sql = "SELECT * FROM interviews WHERE partner1_id = ? OR partner2_id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, user.getTgUsername());
             ps.setString(2, user.getTgUsername());
             ResultSet rs = ps.executeQuery();
@@ -193,6 +210,8 @@ public class InterviewDaoImpl implements InterviewDao {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка при получении списка интервью", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return interviews;
     }
@@ -201,7 +220,7 @@ public class InterviewDaoImpl implements InterviewDao {
     public List<Interview> getAllInterviews(){
         List<Interview> interviews = new ArrayList<>();
         String sql = "SELECT * FROM interviews";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 Interview interview = new Interview(
@@ -217,6 +236,8 @@ public class InterviewDaoImpl implements InterviewDao {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Ошибка при получении всех интервью", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return interviews;
     }
