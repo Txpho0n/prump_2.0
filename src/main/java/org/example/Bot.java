@@ -139,7 +139,7 @@ public class Bot extends TelegramLongPollingBot {
 
             case "/help":
                 sendMessage(chatId, "Команды:\n/start - начать\n/help - помощь\n/interview - новое интервью\n" +
-                        "/deactivate - отключить участие в интервью\n/activate - включить участие в интервью\n" +
+                        "/deactivate - отключить участие в интервью\n/activate - включить участие в интервью\n/cancel_interview - выберите интервью, которое хочется отменить\n" +
                         "/settopic - сменить тему (админ)\n\nОбязательно ознакомьтесь с инструкцией по подготовке к мок-интервью: https://teletype.in/@sidnevart_cu/SUcyzdPmr62\nИ с инструкцией по тому что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt");
                 break;
 
@@ -311,8 +311,8 @@ public class Bot extends TelegramLongPollingBot {
 
                     interviewService.deleteInterview(id);
 
-                    String message = "Интервью с @" + partnerUsername + " (задача: " + task + ", время: " + time +
-                            ") отменено пользователем @" + initiatorUsername + "\\.";
+                    String message = "Интервью с @" + partnerUsername + " (время: " + time +
+                            ") отменено пользователем @" + initiatorUsername;
                     sendMessage(chatId, message);
                     sendMessage(partnerId, message);
                     sendMessage(chatId, "Интервью успешно отменено.");
@@ -346,8 +346,8 @@ public class Bot extends TelegramLongPollingBot {
             String initiatorUsername = userService.getUserById(chatId).getTgUsername();
             String partnerUsername = userService.getUserById(partnerId).getTgUsername();
 
-            String message = "Интервью с @" + partnerUsername + " (задача: " + task + ", время: " + time +
-                    ") отменено пользователем @" + initiatorUsername + "\\.";
+            String message = "Интервью с @" + partnerUsername + " (время: " + time +
+                    ") отменено пользователем @" + initiatorUsername;
             sendMessage(chatId, message);
             sendMessage(partnerId, message);
             userStates.put(chatId, BotState.MAIN_MENU);
@@ -461,7 +461,8 @@ public class Bot extends TelegramLongPollingBot {
                         "📌 Свяжитесь с " + user2.getTgUsername() + " в Telegram, чтобы обсудить детали.\n" +
                         "Выберите дату и время интервью через календарь ниже.\n\n"+
                         "Инструкция про то как подготовиться к интервью - https://teletype.in/@sidnevart_cu/SUcyzdPmr62 \n" +
-                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt";
+                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt \n\n" +
+                        "Если хотите отменить это интервью, вызовите команду /cancel_last_interview";
 
 
         // Инструкция для партнёра
@@ -471,7 +472,8 @@ public class Bot extends TelegramLongPollingBot {
                         "📌 Свяжитесь с " + user1.getTgUsername() + " в Telegram, чтобы обсудить детали.\n" +
                         "@"+user1.getTgUsername()+" выберет дату"+"\n\n"+
                         "Инструкция про то как подготовиться к интервью - https://teletype.in/@sidnevart_cu/SUcyzdPmr62 \n" +
-                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt";
+                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt" +
+                        "Если хотите отменить это интервью, вызовите команду /cancel_last_interview";
 
         SendMessage message1 = new SendMessage();
         message1.setChatId(chatId);
