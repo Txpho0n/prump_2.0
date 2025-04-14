@@ -222,7 +222,7 @@ public class Bot extends TelegramLongPollingBot {
                         userService.updateLeetCodeUsername(chatId, leetCodeUsername);
                         manager.initialAssessment(leetCodeUsername);
                         User user = userService.getUserById(chatId);
-                        String response = "✅ Рейтинг рассчитан!\nТвой XP: " + user.getXp();
+                        String response = "✅ Рейтинг рассчитан!";
                         sendMessage(chatId, response);
                         showMainMenu(chatId, update.getMessage()); // Переход в MAIN_MENU
                         userStates.put(chatId, BotState.MAIN_MENU);
