@@ -114,6 +114,48 @@ public class InterviewDaoImpl implements InterviewDao {
             throw new RuntimeException(e);
         }
     }
+    public List<Interview> findAllActiveInterviewsByTgId(String telegramId){
+        String sql = "SELECT * FROM interviews WHERE (partner1_id = ? OR partner2_id = ?) AND start_time > NOW()";
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, telegramId);
+            ps.setString(2, telegramId);
+            ResultSet rs = ps.executeQuery();
+            List<Interview> interviews = new ArrayList<>();
+            while (rs.next()) {
+                interviews.add(new Interview(
+                        rs.getLong("id"),
+                        rs.getString("partner1_id"),
+                        rs.getString("partner2_id"),
+                        rs.getString("task_user1"),
+                        rs.getString("task_user2"),
+                        rs.getTimestamp("start_time").toLocalDateTime(),
+                        rs.getTimestamp("end_time").toLocalDateTime()
+                ));
+            }
+            return interviews;
+        } catch (SQLException e) {
+            throw new RuntimeException("Ошибка при получении активных интервью", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public Long findAllActiveInterviewsAmount(String telegramId){
+        String sql = "SELECT COUNT(*) FROM interviews WHERE (partner1_id = ? OR partner2_id = ?) AND start_time > NOW()";
+        try (Connection connection = dbConfig.getConnection();PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, telegramId);
+            ps.setString(2, telegramId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Ошибка при получении количества активных интервью", e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return 0L;
+    }
 
     @Override
     public String getUser1Task(Interview interview) {

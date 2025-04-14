@@ -63,7 +63,12 @@ public class InterviewService {
     public List<Interview> getAllInterviews() {
         return interviewDao.getAllInterviews();
     }
-
+    public Long findAllActiveInterviewsAmount(String telegramId) {
+        return interviewDao.findAllActiveInterviewsAmount(telegramId);
+    }
+    public List<Interview> findAllActiveInterviewsByTgId(String telegramId){
+        return interviewDao.findAllActiveInterviewsByTgId(telegramId);
+    }
     public void deleteInterview(Long id) {
         interviewDao.deleteInterview(id);
     }
