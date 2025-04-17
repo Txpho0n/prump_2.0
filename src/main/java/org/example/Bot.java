@@ -172,7 +172,9 @@ public class Bot extends TelegramLongPollingBot {
                         "/deactivate - отключить участие в интервью\n/activate - включить участие в интервью\n/cancel_interview - выберите интервью, которое хочется отменить\n" +
                         "/settopic - сменить тему (админ)\n/reset - сброс состояния (используйте, когда что-то зависло)\n\nОбязательно ознакомьтесь с инструкцией по подготовке к мок-интервью: https://teletype.in/@sidnevart_cu/SUcyzdPmr62\nИ с инструкцией по тому что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt", null);
                 break;
-
+            case "/feedback":
+                sendMessage(chatId, "Пожалуйста, оставьте свой отзыв о боте. Мы ценим ваше мнение! Пройдите опрос по ссылке - https://docs.google.com/forms/d/e/1FAIpQLSeXZ5_UG_ZaIkktMT3E1QrYsFdfNXbeRvTR24grho2NdoOO1Q/viewform?usp=dialog", null);
+                break;
             case "/interview":
                 System.out.println("Пользователь " + chatId + " запросил интервью, текущее состояние: " + state);
                 if (state == BotState.MAIN_MENU) {
@@ -568,7 +570,7 @@ public class Bot extends TelegramLongPollingBot {
                 String status = userService.isActive(chatId) ? "активен" : "деактивирован";
                 String ratingText = user.getSocialRating() > 0 ? String.format("%.1f", user.getSocialRating()) : "нет оценок";
                 sendMessage(chatId, buildWelcomeMessage(user) + "\nСоциальный рейтинг: " + ratingText + "\nСтатус: " + status, null);
-                sendMessage(chatId, "Выберите действие:\n/interview - начать интервью\n/help - помощь\n" +
+                sendMessage(chatId, "Выберите действие:\n/interview - начать интервью\n/help - помощь\n/reset - сбросить состояние если бот завис\n/feedback - оставить отзыв о боте" +
                         "/deactivate - отключить участие\n/activate - включить участие",null);
                 userStates.put(chatId, BotState.MAIN_MENU);
             }
