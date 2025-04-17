@@ -1,6 +1,7 @@
 package org.example.dao;
 
 import org.example.config.DatabaseConfig;
+import org.example.model.Rating;
 import org.example.model.User;
 
 import java.io.BufferedReader;
@@ -43,6 +44,7 @@ public class UserDaoImpl implements UserDao {
             stmt.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
 
             stmt.setBoolean(8, user.isAdmin());
+            stmt.setDouble(9, user.getSocialRating());
 
             stmt.executeUpdate();
 
@@ -75,7 +77,8 @@ public class UserDaoImpl implements UserDao {
                                 : null,
                         rs.getTimestamp("registration_date").toLocalDateTime(),
                         rs.getBoolean("is_admin"),
-                        rs.getBoolean("is_active")
+                        rs.getBoolean("is_active"),
+                        rs.getDouble("social_rating")
                 );
             } else {
                 return null;
@@ -110,7 +113,8 @@ public class UserDaoImpl implements UserDao {
                                 : null,
                         rs.getTimestamp("registration_date").toLocalDateTime(),
                         rs.getBoolean("is_admin"),
-                        rs.getBoolean("is_active")
+                        rs.getBoolean("is_active"),
+                        rs.getDouble("social_rating")
                 );
             }
         } catch (SQLException e) {
@@ -243,7 +247,8 @@ public class UserDaoImpl implements UserDao {
                                 : null,
                         rs.getTimestamp("registration_date").toLocalDateTime(),
                         rs.getBoolean("is_admin"),
-                        rs.getBoolean("is_active")
+                        rs.getBoolean("is_active"),
+                        rs.getDouble("social_rating")
                 ));
             }
             return users;
@@ -277,7 +282,8 @@ public class UserDaoImpl implements UserDao {
                                 : null,
                         rs.getTimestamp("registration_date").toLocalDateTime(),
                         rs.getBoolean("is_admin"),
-                        rs.getBoolean("is_active")
+                        rs.getBoolean("is_active"),
+                        rs.getDouble("social_rating")
                 ));
             }
             return users;
@@ -338,7 +344,8 @@ public class UserDaoImpl implements UserDao {
                                 : null,
                         rs.getTimestamp("registration_date").toLocalDateTime(),
                         rs.getBoolean("is_admin"),
-                        rs.getBoolean("is_active")
+                        rs.getBoolean("is_active"),
+                        rs.getDouble("social_rating")
                 ));
             }
         } catch (SQLException e) {
@@ -376,5 +383,39 @@ public class UserDaoImpl implements UserDao {
             throw new RuntimeException(e);
         }
         return false;
+    }
+
+
+    public void saveRating(Rating rating) {
+        String sql = "INSERT INTO ratings (rater_id, rated_id, interview_id, rating) VALUES (?, ?, ?, ?)";
+        try (Connection conn = dbConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, rating.getRaterId());
+            stmt.setString(2, rating.getRatedId());
+            stmt.setLong(3, rating.getInterviewId());
+            stmt.setInt(4, rating.getRating());
+            stmt.executeUpdate();
+        } catch (Exception e) {
+            throw new RuntimeException("Ошибка при сохранении оценки", e);
+        }
+    }
+
+    public void updateSocialRating(String telegramId) {
+        String sql = "SELECT AVG(rating) as avg_rating FROM ratings WHERE rated_id = ?";
+        try (Connection conn = dbConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, telegramId);
+            ResultSet rs = stmt.executeQuery();
+            double avgRating = rs.next() && !rs.wasNull() ? rs.getDouble("avg_rating") : 0.0;
+
+            String updateSql = "UPDATE users SET social_rating = ? WHERE telegram_id = ?";
+            try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+                updateStmt.setDouble(1, avgRating);
+                updateStmt.setString(2, telegramId);
+                updateStmt.executeUpdate();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Ошибка при обновлении социального рейтинга", e);
+        }
     }
 }

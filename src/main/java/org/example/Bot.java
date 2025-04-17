@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.config.BotConfig;
 import org.example.config.DatabaseConfig;
+import org.example.dao.InterviewDaoImpl;
 import org.example.keyboards.KeyboardUtils;
 import org.example.model.Interview;
+import org.example.model.Rating;
 import org.example.model.User;
 import org.example.multithreading.BotScheduler;
 import org.example.service.InterviewService;
@@ -40,7 +42,8 @@ enum BotState {
     AWAITING_ADMIN_TOPIC,
     AWAITING_LEETCODE_USERNAME,
     AWAITING_INTERVIEW_SELECTION_FOR_CANCEL, // выбор интервью для отмены
-    AWAITING_CANCELLATION_CONFIRMATION // подтверждение отмены
+    AWAITING_CANCELLATION_CONFIRMATION, // подтверждение отмены
+    AWAITING_RATING
 }
 
 public class Bot extends TelegramLongPollingBot {
@@ -55,7 +58,34 @@ public class Bot extends TelegramLongPollingBot {
     private final BotScheduler scheduler;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+    private void sendMessage(String chatId, String text, InlineKeyboardMarkup markup) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(text);
+        try {
+            executeAsync(message, new SentCallback<Message>() {
+                @Override
+                public void onResult(BotApiMethod<Message> botApiMethod, Message message) {
+                    System.out.println("Message sent to " + chatId + ": " + text);
+                }
 
+                @Override
+                public void onError(BotApiMethod<Message> botApiMethod, TelegramApiRequestException e) {
+                    System.err.println("Telegram API error sending message to " + chatId + ": " + e.getApiResponse());
+                }
+
+                @Override
+                public void onException(BotApiMethod<Message> botApiMethod, Exception e) {
+                    System.err.println("Exception sending message to " + chatId + ": " + e.getMessage());
+                }
+            });
+            Thread.sleep(50);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (TelegramApiException e) {
+            System.err.println("Failed to initiate message sending to " + chatId + ": " + e.getMessage());
+        }
+    }
     private final List<String> availableTopics = Arrays.asList(
             "Array", "String", "Hash Table", "Dynamic Programming", "Math", "Sorting", "Greedy",
             "Depth-First Search", "Binary Search", "Database", "Matrix", "Breadth-First Search",
@@ -128,7 +158,7 @@ public class Bot extends TelegramLongPollingBot {
                     User newUser = createNewUser(update.getMessage());
                     userService.registerUser(newUser);
                     userService.setActive(chatId, true);
-                    sendMessage(chatId, "Добро пожаловать! Укажите ваш LeetCode username.");
+                    sendMessage(chatId, "Добро пожаловать! Укажите ваш LeetCode username.", null);
                     userStates.put(chatId, BotState.AWAITING_LEETCODE_USERNAME);
                 } else {
                     userService.setActive(chatId, true);
@@ -140,7 +170,7 @@ public class Bot extends TelegramLongPollingBot {
             case "/help":
                 sendMessage(chatId, "Команды:\n/start - начать\n/help - помощь\n/interview - новое интервью\n" +
                         "/deactivate - отключить участие в интервью\n/activate - включить участие в интервью\n/cancel_interview - выберите интервью, которое хочется отменить\n" +
-                        "/settopic - сменить тему (админ)\n\nОбязательно ознакомьтесь с инструкцией по подготовке к мок-интервью: https://teletype.in/@sidnevart_cu/SUcyzdPmr62\nИ с инструкцией по тому что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt");
+                        "/settopic - сменить тему (админ)\n/reset - сброс состояния (используйте, когда что-то зависло)\n\nОбязательно ознакомьтесь с инструкцией по подготовке к мок-интервью: https://teletype.in/@sidnevart_cu/SUcyzdPmr62\nИ с инструкцией по тому что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt", null);
                 break;
 
             case "/interview":
@@ -149,10 +179,10 @@ public class Bot extends TelegramLongPollingBot {
                     if (userService.isActive(chatId)) {
                         startInterview(chatId);
                     } else {
-                        sendMessage(chatId, "Вы деактивированы. Используйте /activate, чтобы участвовать в интервью.");
+                        sendMessage(chatId, "Вы деактивированы. Используйте /activate, чтобы участвовать в интервью.", null);
                     }
                 } else {
-                    sendMessage(chatId, "Сначала завершите регистрацию или вернитесь в главное меню с помощью /start.");
+                    sendMessage(chatId, "Сначала завершите регистрацию или вернитесь в главное меню с помощью /start.", null);
                 }
                 break;
 
@@ -160,20 +190,20 @@ public class Bot extends TelegramLongPollingBot {
                 if (userService.userExists(chatId)) {
                     userService.setActive(chatId, false);
                     sendMessage(chatId, "Вы деактивированы. Теперь вы не будете участвовать в подборе для интервью. " +
-                            "Используйте /activate, чтобы вернуться.");
+                            "Используйте /activate, чтобы вернуться.",  null);
                     userStates.put(chatId, BotState.MAIN_MENU);
                 } else {
-                    sendMessage(chatId, "Сначала зарегистрируйтесь с помощью /start.");
+                    sendMessage(chatId, "Сначала зарегистрируйтесь с помощью /start.", null);
                 }
                 break;
 
             case "/activate":
                 if (userService.userExists(chatId)) {
                     userService.setActive(chatId, true);
-                    sendMessage(chatId, "Вы активированы и снова можете участвовать в интервью!");
+                    sendMessage(chatId, "Вы активированы и снова можете участвовать в интервью!", null);
                     userStates.put(chatId, BotState.MAIN_MENU);
                 } else {
-                    sendMessage(chatId, "Сначала зарегистрируйтесь с помощью /start.");
+                    sendMessage(chatId, "Сначала зарегистрируйтесь с помощью /start.", null);
                 }
                 break;
 
@@ -182,36 +212,36 @@ public class Bot extends TelegramLongPollingBot {
                     showTopicPicker(chatId);
                     userStates.put(chatId, BotState.AWAITING_ADMIN_TOPIC);
                 } else {
-                    sendMessage(chatId, "У вас нет прав администратора");
+                    sendMessage(chatId, "У вас нет прав администратора", null);
                 }
                 break;
 
             case "/reset":
                 userStates.put(chatId, BotState.MAIN_MENU);
-                sendMessage(chatId, "Состояние сброшено. Вы в главном меню.");
+                sendMessage(chatId, "Состояние сброшено. Вы в главном меню.", null);
                 break;
 
             case "/cancel_last_interview":
                 if (state == BotState.MAIN_MENU) {
                     if (!userService.userExists(chatId)) {
-                        sendMessage(chatId, "Сначала зарегистрируйтесь с помощью /start.");
+                        sendMessage(chatId, "Сначала зарегистрируйтесь с помощью /start.", null);
                         return;
                     }
                     cancelNewInterview(chatId);
                 } else {
-                    sendMessage(chatId, "Вернитесь в главное меню с помощью /start.");
+                    sendMessage(chatId, "Вернитесь в главное меню с помощью /start.", null);
                 }
                 break;
 
             case "/cancel_interview":
                 if (state == BotState.MAIN_MENU) {
                     if (!userService.userExists(chatId)) {
-                        sendMessage(chatId, "Сначала зарегистрируйтесь с помощью /start.");
+                        sendMessage(chatId, "Сначала зарегистрируйтесь с помощью /start.", null);
                         return;
                     }
                     showInterviewsForCancellation(chatId);
                 } else {
-                    sendMessage(chatId, "Вернитесь в главное меню с помощью /start.");
+                    sendMessage(chatId, "Вернитесь в главное меню с помощью /start.", null);
                 }
                 break;
                 
@@ -223,16 +253,16 @@ public class Bot extends TelegramLongPollingBot {
                         manager.initialAssessment(leetCodeUsername);
                         User user = userService.getUserById(chatId);
                         String response = "✅ Рейтинг рассчитан!";
-                        sendMessage(chatId, response);
+                        sendMessage(chatId, response, null);
                         showMainMenu(chatId, update.getMessage()); // Переход в MAIN_MENU
                         userStates.put(chatId, BotState.MAIN_MENU);
                     } catch (IOException e) {
-                        sendMessage(chatId, "❌ Ошибка: Проверь правильность LeetCode username");
+                        sendMessage(chatId, "❌ Ошибка: Проверь правильность LeetCode username", null);
                     } catch (Exception e) {
                         handleError(chatId, "Ошибка обработки", e);
                     }
                 } else {
-                    sendMessage(chatId, "Неизвестная команда. Используйте /help для списка команд.");
+                    sendMessage(chatId, "Неизвестная команда. Используйте /help для списка команд.", null);
                 }
                 break;
         }
@@ -244,7 +274,7 @@ public class Bot extends TelegramLongPollingBot {
     private void showInterviewsForCancellation(String chatId) {
         List<Interview> interviews = interviewService.findAllActiveInterviewsByTgId(chatId);
         if (interviews.isEmpty()) {
-            sendMessage(chatId, "У вас нет запланированных интервью.");
+            sendMessage(chatId, "У вас нет запланированных интервью.", null);
             userStates.put(chatId, BotState.MAIN_MENU);
             return;
         }
@@ -276,7 +306,7 @@ public class Bot extends TelegramLongPollingBot {
             userStates.put(chatId, BotState.AWAITING_INTERVIEW_SELECTION_FOR_CANCEL);
         } catch (TelegramApiException e) {
             System.err.println("Failed to send interview selection: " + e.getMessage());
-            sendMessage(chatId, "Ошибка при отображении интервью.");
+            sendMessage(chatId, "Ошибка при отображении интервью.", null);
             userStates.put(chatId, BotState.MAIN_MENU);
         }
     }
@@ -284,7 +314,7 @@ public class Bot extends TelegramLongPollingBot {
     private void handleCancellationConfirmation(String chatId, String messageText) {
         String interviewId = pendingCancellationInterviewId.get(chatId);
         if (interviewId == null) {
-            sendMessage(chatId, "Ошибка: интервью не выбрано. Используйте /cancel_interview.");
+            sendMessage(chatId, "Ошибка: интервью не выбрано. Используйте /cancel_interview.", null);
             userStates.put(chatId, BotState.MAIN_MENU);
             pendingCancellationInterviewId.remove(chatId);
             return;
@@ -299,7 +329,7 @@ public class Bot extends TelegramLongPollingBot {
                         .findFirst()
                         .orElse(null);
                 if (interview == null) {
-                    sendMessage(chatId, "Интервью не найдено или уже отменено.");
+                    sendMessage(chatId, "Интервью не найдено или уже отменено.", null);
                 } else {
                     String partnerId = interview.getPartner1Id().equals(chatId) ? interview.getPartner2Id() : interview.getPartner1Id();
                     String task = interview.getPartner1Id().equals(chatId) ?
@@ -313,17 +343,17 @@ public class Bot extends TelegramLongPollingBot {
 
                     String message = "Интервью с @" + partnerUsername + " (время: " + time +
                             ") отменено пользователем @" + initiatorUsername;
-                    sendMessage(chatId, message);
-                    sendMessage(partnerId, message);
-                    sendMessage(chatId, "Интервью успешно отменено.");
+                    sendMessage(chatId, message, null);
+                    sendMessage(partnerId, message, null);
+                    sendMessage(chatId, "Интервью успешно отменено.", null);
                 }
             } catch (Exception e) {
-                sendMessage(chatId, "Ошибка при отмене: " + e.getMessage());
+                sendMessage(chatId, "Ошибка при отмене: " + e.getMessage(), null);
             }
         } else if (messageText.equalsIgnoreCase("нет")) {
-            sendMessage(chatId, "Действие отменено.");
+            sendMessage(chatId, "Действие отменено.", null);
         } else {
-            sendMessage(chatId, "Пожалуйста, напишите 'да' или 'нет'.");
+            sendMessage(chatId, "Пожалуйста, напишите 'да' или 'нет'.", null);
             return;
         }
 
@@ -348,14 +378,14 @@ public class Bot extends TelegramLongPollingBot {
 
             String message = "Интервью с @" + partnerUsername + " (время: " + time +
                     ") отменено пользователем @" + initiatorUsername;
-            sendMessage(chatId, message);
-            sendMessage(partnerId, message);
+            sendMessage(chatId, message, null);
+            sendMessage(partnerId, message, null);
             userStates.put(chatId, BotState.MAIN_MENU);
         } else {
             // Поиск ближайшего интервью
             List<Interview> interviews = interviewService.findAllActiveInterviewsByTgId(chatId);
             if (interviews.isEmpty()) {
-                sendMessage(chatId, "У вас нет запланированных интервью.");
+                sendMessage(chatId, "У вас нет запланированных интервью.", null);
                 userStates.put(chatId, BotState.MAIN_MENU);
                 return;
             }
@@ -371,7 +401,7 @@ public class Bot extends TelegramLongPollingBot {
             }
 
             if (nearest == null) {
-                sendMessage(chatId, "Нет интервью с указанным временем для отмены.");
+                sendMessage(chatId, "Нет интервью с указанным временем для отмены.", null);
                 userStates.put(chatId, BotState.MAIN_MENU);
                 return;
             }
@@ -388,8 +418,8 @@ public class Bot extends TelegramLongPollingBot {
 
             String message = "Интервью с @" + partnerUsername + " (задача: " + task + ", время: " + time +
                     ") отменено пользователем @" + initiatorUsername + "\\.";
-            sendMessage(chatId, message);
-            sendMessage(partnerId, message);
+            sendMessage(chatId, message, null);
+            sendMessage(partnerId, message, null);
             userStates.put(chatId, BotState.MAIN_MENU);
         }
     }
@@ -398,24 +428,24 @@ public class Bot extends TelegramLongPollingBot {
     private void startInterview(String chatId) throws TelegramApiException, IOException, InterruptedException {
         User user1 = userService.getUserById(chatId);
         if (user1 == null) {
-            sendMessage(chatId, "Ошибка: пользователь не найден.");
+            sendMessage(chatId, "Ошибка: пользователь не найден.", null);
             return;
         }
 
         if(interviewService.findAllActiveInterviewsAmount(chatId) > 7){
-            sendMessage(chatId, "Ошибка: у вас уже есть 7 запланированных интервью. Пожалуйста, завершите хотя бы одно из них перед созданием нового.");
+            sendMessage(chatId, "Ошибка: у вас уже есть 7 запланированных интервью. Пожалуйста, завершите хотя бы одно из них перед созданием нового.", null);
             return;
         }
 
         String partnerId = manager.getPeerTelegramId(user1.getLeague());
         if (partnerId == null || partnerId.equals(chatId)) {
-            sendMessage(chatId, "Ошибка: Попробуйте через минуту.");
+            sendMessage(chatId, "Ошибка: Попробуйте через минуту.", null);
             return;
         }
 
         User user2 = userService.getUserById(partnerId);
         if (user2 == null || !userService.isActive(partnerId)) {
-            sendMessage(chatId, "Ошибка: Попробуйте через минуту.");
+            sendMessage(chatId, "Ошибка: Попробуйте через минуту.", null);
             return;
         }
 
@@ -427,7 +457,7 @@ public class Bot extends TelegramLongPollingBot {
             task2 = manager.matchTask(user2.getXp());
         } catch (IOException e) {
             System.err.println("Failed to match tasks: " + e.getMessage());
-            sendMessage(chatId, "Не удалось подобрать задачи для интервью. Попробуйте позже!");
+            sendMessage(chatId, "Не удалось подобрать задачи для интервью. Попробуйте позже!",null);
             return;
         }
 
@@ -447,7 +477,7 @@ public class Bot extends TelegramLongPollingBot {
 
         Long generatedId = interviewService.scheduleInterview(interview);
         if (generatedId == null) {
-            sendMessage(chatId, "Ошибка: не удалось создать интервью.");
+            sendMessage(chatId, "Ошибка: не удалось создать интервью.",null);
             return;
         }
         interview.setId(generatedId);
@@ -456,24 +486,22 @@ public class Bot extends TelegramLongPollingBot {
 
         // Инструкция для инициатора
         String initiatorMessage =
-                "Ваш партнер: @" + user2.getTgUsername() + "\n" +
+                "Ваш партнер: @" + user2.getTgUsername() + " (социальный рейтинг: " + user2.getSocialRating() + ")\n" +
                         "Задача которую вы будете проверять: " + task1Url + "\n" +
-                        "📌 Свяжитесь с " + user2.getTgUsername() + " в Telegram, чтобы обсудить детали.\n" +
-                        "Выберите дату и время интервью через календарь ниже.\n\n"+
+                        "📌 Свяжитесь с @" + user2.getTgUsername() + " в Telegram, чтобы обсудить детали.\n" +
+                        "Выберите дату и время интервью через календарь ниже.\n\n" +
                         "Инструкция про то как подготовиться к интервью - https://teletype.in/@sidnevart_cu/SUcyzdPmr62 \n" +
-                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt \n\n" +
-                        "Если хотите отменить это интервью, вызовите команду /cancel_last_interview";
+                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt\n\n" +
+                        "Если хотите отменить это интервью, используйте /cancel_last_interview";
 
-
-        // Инструкция для партнёра
         String partnerMessage =
-                "Ваш партнер: @" + user1.getTgUsername() + "\n" +
+                "Ваш партнер: @" + user1.getTgUsername() + " (социальный рейтинг: " + user1.getSocialRating() + ")\n" +
                         "Задача которую вы будете проверять: " + task2Url + "\n" +
-                        "📌 Свяжитесь с " + user1.getTgUsername() + " в Telegram, чтобы обсудить детали.\n" +
-                        "@"+user1.getTgUsername()+" выберет дату"+"\n\n"+
+                        "📌 Свяжитесь с @" + user1.getTgUsername() + " в Telegram, чтобы обсудить детали.\n" +
+                        "@" + user1.getTgUsername() + " выберет дату\n\n" +
                         "Инструкция про то как подготовиться к интервью - https://teletype.in/@sidnevart_cu/SUcyzdPmr62 \n" +
-                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt" +
-                        "Если хотите отменить это интервью, вызовите команду /cancel_last_interview";
+                        "Инструкция про то что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt\n\n" +
+                        "Если хотите отменить это интервью, используйте /cancel_last_interview";
 
         SendMessage message1 = new SendMessage();
         message1.setChatId(chatId);
@@ -533,14 +561,15 @@ public class Bot extends TelegramLongPollingBot {
             if (!userService.userExists(chatId)) {
                 User newUser = createNewUser(message);
                 userService.registerUser(newUser);
-                sendMessage(chatId, "Привет! Введи свой LeetCode username:");
+                sendMessage(chatId, "Привет! Введи свой LeetCode username:",null);
                 userStates.put(chatId, BotState.AWAITING_LEETCODE_USERNAME);
             } else {
                 User user = userService.getUserById(chatId);
                 String status = userService.isActive(chatId) ? "активен" : "деактивирован";
-                sendMessage(chatId, buildWelcomeMessage(user) + "\nСтатус: " + status);
+                String ratingText = user.getSocialRating() > 0 ? String.format("%.1f", user.getSocialRating()) : "нет оценок";
+                sendMessage(chatId, buildWelcomeMessage(user) + "\nСоциальный рейтинг: " + ratingText + "\nСтатус: " + status, null);
                 sendMessage(chatId, "Выберите действие:\n/interview - начать интервью\n/help - помощь\n" +
-                        "/deactivate - отключить участие\n/activate - включить участие");
+                        "/deactivate - отключить участие\n/activate - включить участие",null);
                 userStates.put(chatId, BotState.MAIN_MENU);
             }
         } catch (Exception e) {
@@ -608,7 +637,7 @@ public class Bot extends TelegramLongPollingBot {
                 LocalDate selectedDate = LocalDate.parse(dateStr);
                 LocalDate today = LocalDate.now();
                 if (selectedDate.isBefore(today)) {
-                    sendMessage(telegramId, "Нельзя выбрать дату в прошлом. Пожалуйста, выберите сегодняшнюю или будущую дату.");
+                    sendMessage(telegramId, "Нельзя выбрать дату в прошлом. Пожалуйста, выберите сегодняшнюю или будущую дату.",null);
                     showDatePicker(telegramId, today);
                     return;
                 }
@@ -618,14 +647,14 @@ public class Bot extends TelegramLongPollingBot {
                 String[] parts = callbackData.split("_");
                 LocalDateTime dateTime = LocalDate.parse(parts[1]).atTime(Integer.parseInt(parts[2].split(":")[0]), 0);
                 if (dateTime.isBefore(LocalDateTime.now())) {
-                    sendMessage(telegramId, "Нельзя выбрать время в прошлом. Пожалуйста, выберите другое время.");
+                    sendMessage(telegramId, "Нельзя выбрать время в прошлом. Пожалуйста, выберите другое время.",null);
                     showTimePicker(chatId, LocalDate.parse(parts[1]));
                     return;
                 }
 
                 Interview interview = pendingInterviews.get(telegramId);
                 if (interview == null) {
-                    sendMessage(telegramId, "Ошибка: интервью не найдено. Начните заново с /interview");
+                    sendMessage(telegramId, "Ошибка: интервью не найдено. Начните заново с /interview",null);
                     userStates.put(telegramId, BotState.MAIN_MENU);
                     return;
                 }
@@ -634,29 +663,49 @@ public class Bot extends TelegramLongPollingBot {
                 interview.setEnd_time(dateTime.plusHours(1));
                 interviewService.updateInterview(interview);
 
-                sendMessage(telegramId, "Интервью запланировано на " + dateTime.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")));
+                sendMessage(telegramId, "Интервью запланировано на " + dateTime.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")),null);
                 sendMessage(interview.getPartner2Id(), "Интервью с @" + userService.getUserById(telegramId).getTgUsername() +
-                        " запланировано на " + dateTime.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")));
+                        " запланировано на " + dateTime.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")),null);
 
                 pendingInterviews.remove(telegramId);
                 userStates.put(telegramId, BotState.MAIN_MENU);
             } else if (state == BotState.AWAITING_ADMIN_TOPIC && callbackData.startsWith("topic_")) {
                 String newTopic = callbackData.split("_")[1];
                 BotConfig.setTopic(newTopic);
-                sendMessage(telegramId, "Тема изменена на: " + newTopic);
+                sendMessage(telegramId, "Тема изменена на: " + newTopic,null);
                 userStates.put(telegramId, BotState.MAIN_MENU);
             } else if (state == BotState.AWAITING_INTERVIEW_SELECTION_FOR_CANCEL && callbackData.startsWith("cancel_interview_")) {
                 String interviewId = callbackData.replace("cancel_interview_", "");
                 pendingCancellationInterviewId.put(telegramId, interviewId);
-                sendMessage(telegramId, "Вы уверены, что хотите отменить это интервью? Напишите 'да' для подтверждения или 'нет' для отмены.");
+                sendMessage(telegramId, "Вы уверены, что хотите отменить это интервью? Напишите 'да' для подтверждения или 'нет' для отмены.",null);
                 userStates.put(telegramId, BotState.AWAITING_CANCELLATION_CONFIRMATION);
+            } else if (callbackData.startsWith("rate_")) {
+                handleRatingCallback(telegramId, callbackData);
             } else {
-                sendMessage(telegramId, "Ошибка: неверное действие. Используйте /start.");
+                sendMessage(telegramId, "Ошибка: неверное действие. Используйте /start.",null);
                 userStates.put(telegramId, BotState.MAIN_MENU);
             }
         } catch (Exception e) {
             System.err.println("Error in handleCallback: " + e.getMessage());
-            sendMessage(telegramId, "Ошибка при обработке выбора. Попробуйте снова.");
+            sendMessage(telegramId, "Ошибка при обработке выбора. Попробуйте снова.",null);
+            userStates.put(telegramId, BotState.MAIN_MENU);
+        }
+    }
+    private void handleRatingCallback(String telegramId, String callbackData) {
+        try {
+            String[] parts = callbackData.split("_");
+            Long interviewId = Long.parseLong(parts[1]);
+            String ratedId = parts[2];
+            Integer rating = Integer.parseInt(parts[3]);
+
+            Rating userRating = new Rating(telegramId, ratedId, interviewId, rating);
+            userService.saveRating(userRating);
+            userService.updateSocialRating(ratedId);
+
+            sendMessage(telegramId, "Спасибо за оценку!",null);
+            userStates.put(telegramId, BotState.MAIN_MENU);
+        } catch (Exception e) {
+            sendMessage(telegramId, "Ошибка при сохранении оценки: " + e.getMessage(),null);
             userStates.put(telegramId, BotState.MAIN_MENU);
         }
     }
@@ -677,7 +726,8 @@ public class Bot extends TelegramLongPollingBot {
                 null,
                 null,
                 false,
-                true
+                true,
+                0.0
         );
     }
 
@@ -685,38 +735,11 @@ public class Bot extends TelegramLongPollingBot {
         return "Привет, " + user.getFullName() + "!\nТвой рейтинг: " + user.getXp();
     }
 
-    private void sendMessage(String chatId, String text) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(text);
-        try {
-            executeAsync(message, new SentCallback<Message>() {
-                @Override
-                public void onResult(BotApiMethod<Message> botApiMethod, Message message) {
-                    System.out.println("Message sent to " + chatId + ": " + text);
-                }
 
-                @Override
-                public void onError(BotApiMethod<Message> botApiMethod, TelegramApiRequestException e) {
-                    System.err.println("Telegram API error sending message to " + chatId + ": " + e.getApiResponse());
-                }
-
-                @Override
-                public void onException(BotApiMethod<Message> botApiMethod, Exception e) {
-                    System.err.println("Exception sending message to " + chatId + ": " + e.getMessage());
-                }
-            });
-            Thread.sleep(50);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } catch (TelegramApiException e) {
-            System.err.println("Failed to initiate message sending to " + chatId + ": " + e.getMessage());
-        }
-    }
 
     private void handleError(String chatId, String context, Exception e) {
         System.err.println(context + ": " + e.getMessage());
-        sendMessage(chatId, "⚠ Ошибка: " + context);
+        sendMessage(chatId, "⚠ Ошибка: " + context,null);
     }
 
     @Override

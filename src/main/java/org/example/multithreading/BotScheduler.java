@@ -9,11 +9,14 @@ import org.example.service.UserService;
 import org.example.util.LeetCodeUtil;
 import org.example.util.Manager;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -29,7 +32,7 @@ public class BotScheduler {
 
     // Интерфейс для отправки сообщений из бота
     public interface SendMessageCallback {
-        void sendMessage(String chatId, String text) throws TelegramApiException;
+        void sendMessage(String chatId, String text, InlineKeyboardMarkup markup) throws TelegramApiException;
     }
 
     public BotScheduler(InterviewService interviewService, UserService userService,
@@ -52,6 +55,8 @@ public class BotScheduler {
 
                 for (Interview interview : interviews) {
                     LocalDateTime startTime = interview.getStart_time();
+                    LocalDateTime endTime = interview.getEnd_time();
+
                     if (startTime == null) continue;
 
                     long minutesUntilStart = ChronoUnit.MINUTES.between(now, startTime);
@@ -59,9 +64,14 @@ public class BotScheduler {
                         String user1Id = interview.getPartner1Id();
                         String user2Id = interview.getPartner2Id();
                         sendMessageCallback.sendMessage(user1Id, "Привет! Не забудь про интервью через час в " +
-                                startTime.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")));
+                                startTime.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")), null);
                         sendMessageCallback.sendMessage(user2Id, "Привет! Не забудь про интервью через час в " +
-                                startTime.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")));
+                                startTime.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")), null);
+                    }
+
+                    long minutesSinceEnd = ChronoUnit.MINUTES.between(endTime, now);
+                    if (minutesSinceEnd >= 0 && minutesSinceEnd <= 5) { // Запрос в течение 5 минут после окончания
+                        requestRating(interview);
                     }
                 }
             } catch (Exception e) {
@@ -71,6 +81,47 @@ public class BotScheduler {
         };
 
         scheduler.scheduleAtFixedRate(reminderTask, 0, 1, TimeUnit.MINUTES);
+    }
+
+    private void requestRating(Interview interview) throws TelegramApiException {
+        String user1Id = interview.getPartner1Id();
+        String user2Id = interview.getPartner2Id();
+        User user1 = userService.getUserById(user1Id);
+        User user2 = userService.getUserById(user2Id);
+
+        // Запрос оценки для user1 (оценивает user2)
+        String message1 = "Интервью с @" + user2.getTgUsername() + " завершено. " +
+                "Пожалуйста, оцените вашего партнёра по 10-балльной шкале:";
+        InlineKeyboardMarkup markup1 = createRatingKeyboard(interview.getId(), user2Id);
+        sendMessageCallback.sendMessage(user1Id, message1, markup1);
+
+        // Запрос оценки для user2 (оценивает user1)
+        String message2 = "Интервью с @" + user1.getTgUsername() + " завершено. " +
+                "Пожалуйста, оцените вашего партнёра по 10-балльной шкале:";
+        InlineKeyboardMarkup markup2 = createRatingKeyboard(interview.getId(), user1Id);
+        sendMessageCallback.sendMessage(user2Id, message2, markup2);
+    }
+
+    private InlineKeyboardMarkup createRatingKeyboard(Long interviewId, String ratedId) {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+        List<InlineKeyboardButton> row = new ArrayList<>();
+
+        for (int i = 1; i <= 10; i++) {
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText(String.valueOf(i));
+            button.setCallbackData("rate_" + interviewId + "_" + ratedId + "_" + i);
+            row.add(button);
+            if (i % 5 == 0) {
+                keyboard.add(row);
+                row = new ArrayList<>();
+            }
+        }
+        if (!row.isEmpty()) {
+            keyboard.add(row);
+        }
+        markup.setKeyboard(keyboard);
+        return markup;
     }
 
     // Планировщик ежедневных задач (XP и лиги)
@@ -126,10 +177,10 @@ public class BotScheduler {
                 long newXp = user1.getXp() + task1Xp;
                 userService.updateUserXP(user1.getTelegramId(), newXp);
                 sendMessageCallback.sendMessage(user1Id, "Молодец! Ты решил задачу '" + interview.getAssignedTaskForUser1() +
-                        "' (" + userService.getUserLeague(user1Id) + "). Тебе начислено " + task1Xp + " XP. Новый баланс: " + newXp);
+                        "' (" + userService.getUserLeague(user1Id) + "). Тебе начислено " + task1Xp + " XP. Новый баланс: " + newXp, null);
             } else {
                 sendMessageCallback.sendMessage(user2Id, "Ты пока не решил задачу '" + interview.getAssignedTaskForUser2() +
-                        "' (" + userService.getUserLeague(user2Id) + "). Больше практики — и все получится!");
+                        "' (" + userService.getUserLeague(user2Id) + "). Больше практики — и все получится!", null);
             }
 
             boolean user2Solved = checkSubmission(user2Submissions, interview.getAssignedTaskForUser2());
@@ -137,10 +188,10 @@ public class BotScheduler {
                 long newXp = user2.getXp() + task2Xp;
                 userService.updateUserXP(user2Id, newXp);
                 sendMessageCallback.sendMessage(user2Id, "Молодец! Ты решил задачу '" + userService.getUserLeague(user1Id) +
-                        "' (" + userService.getUserLeague(user1Id) + "). Тебе начислено " + task2Xp + " XP. Новый баланс: " + newXp);
+                        "' (" + userService.getUserLeague(user1Id) + "). Тебе начислено " + task2Xp + " XP. Новый баланс: " + newXp, null);
             } else {
                 sendMessageCallback.sendMessage(user2Id, "Ты пока не решил задачу '" + userService.getUserLeague(user1Id) +
-                        "' (" + userService.getUserLeague(user1Id) + "). Больше практики — и все получится!");
+                        "' (" + userService.getUserLeague(user1Id) + "). Больше практики — и все получится!", null);
             }
         } catch (Exception e) {
             System.err.println("Error checking tasks for interview " + interview.getId() + ": " + e.getMessage());
@@ -158,7 +209,7 @@ public class BotScheduler {
 
             if (!newLeague.equals(currentLeague)) {
                 userService.updateUserLeague(user.getTelegramId(), newLeague);
-                sendMessageCallback.sendMessage(user.getTelegramId(), "Твоя лига обновлена! Новая лига: " + newLeague + " (XP: " + xp + ")");
+                sendMessageCallback.sendMessage(user.getTelegramId(), "Твоя лига обновлена! Новая лига: " + newLeague + " (XP: " + xp + ")", null);
             }
         }
     }

@@ -15,9 +15,11 @@ public class User {
     private boolean is_admin;
 
     private boolean is_active;
+    private Double socialRating;
+
 
     // Constructor
-    public User(String tg_username, String telegram_id, String leetcode_username, Long XP, String league, String full_name, LocalDateTime last_mock_interview, LocalDateTime last_solved_task_timestamp, LocalDateTime registration_date, boolean is_admin, boolean is_active) {
+    public User(String tg_username, String telegram_id, String leetcode_username, Long XP, String league, String full_name, LocalDateTime last_mock_interview, LocalDateTime last_solved_task_timestamp, LocalDateTime registration_date, boolean is_admin, boolean is_active, Double socialRating) {
         this.tg_username = tg_username;
         this.telegram_id = telegram_id;
         this.leetcode_username = leetcode_username;
@@ -29,6 +31,7 @@ public class User {
         this.registration_date = registration_date;
         this.is_admin = is_admin;
         this.is_active = is_active;
+        this.socialRating = socialRating;
     }
 
     // Getters
@@ -118,4 +121,7 @@ public class User {
     public void setActive(boolean is_active) {
         this.is_active = is_active;
     }
+
+    public Double getSocialRating() { return socialRating; }
+    public void setSocialRating(Double socialRating) { this.socialRating = socialRating; }
 }

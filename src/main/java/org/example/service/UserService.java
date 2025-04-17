@@ -2,10 +2,12 @@ package org.example.service;
 
 import org.example.config.DatabaseConfig;
 import org.example.dao.UserDaoImpl;
+import org.example.model.Rating;
 import org.example.model.User;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -52,6 +54,14 @@ public class UserService {
 
     public void updateLastMockTimestamp(String tgUsername, LocalDateTime newTimestamp) {
         userDao.updateLastMockTimestamp(tgUsername, newTimestamp);
+    }
+
+    public void saveRating(Rating rating) {
+        userDao.saveRating(rating);
+    }
+
+    public void updateSocialRating(String telegramId) {
+        userDao.updateSocialRating(telegramId);
     }
 
     public String getUserLeague(String telegramId) {
