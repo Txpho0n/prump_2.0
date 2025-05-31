@@ -259,9 +259,9 @@ public class Bot extends TelegramLongPollingBot {
                         showMainMenu(chatId, update.getMessage()); // Переход в MAIN_MENU
                         userStates.put(chatId, BotState.MAIN_MENU);
                     } catch (IOException e) {
-                        sendMessage(chatId, "❌ Ошибка: Проверь правильность LeetCode username", null);
+                        sendMessage(chatId, "❌ Ошибка: Проверь правильность LeetCode username. Попробуй еще раз.", null);
                     } catch (Exception e) {
-                        handleError(chatId, "Ошибка обработки", e);
+                        handleError(chatId, "Ошибка обработки. Попробуйте еще раз.", e);
                     }
                 } else {
                     sendMessage(chatId, "Неизвестная команда. Используйте /help для списка команд.", null);
