@@ -3,6 +3,7 @@ package org.example.config;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.flywaydb.core.Flyway;
+import io.github.cdimascio.dotenv.Dotenv;
 
 import java.sql.Connection;
 
@@ -11,9 +12,10 @@ public class DatabaseConfig {
     private final HikariDataSource dataSource;
 
     private DatabaseConfig() {
-        String url = System.getenv("DB_URL");
-        String user = System.getenv("DB_USERNAME");
-        String password = System.getenv("DB_PASSWORD");
+        Dotenv dotenv = Dotenv.load();
+        String url = dotenv.get("DB_URL");
+        String user = dotenv.get("DB_USERNAME");
+        String password = dotenv.get("DB_PASSWORD");
 
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(url);

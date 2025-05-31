@@ -25,8 +25,8 @@ public class UserDaoImpl implements UserDao {
 
     @Override
     public void registerUser(User user) {
-        String sql = "INSERT INTO users (telegram_id, tg_username, xp, full_name, last_mock_interview, last_solved_task_timestamp, registration_date, is_admin) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO users (telegram_id, tg_username, xp, full_name, last_mock_interview, last_solved_task_timestamp, registration_date, is_admin,social_rating) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection connection = dbConfig.getConnection();PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, user.getTelegramId());
             stmt.setString(2, user.getTgUsername());
