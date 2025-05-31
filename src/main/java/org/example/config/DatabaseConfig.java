@@ -12,10 +12,14 @@ public class DatabaseConfig {
     private final HikariDataSource dataSource;
 
     private DatabaseConfig() {
-        Dotenv dotenv = Dotenv.load();
-        String url = dotenv.get("DB_URL");
-        String user = dotenv.get("DB_USERNAME");
-        String password = dotenv.get("DB_PASSWORD");
+        // Dotenv dotenv = Dotenv.load();
+        // String url = dotenv.get("DB_URL");
+        // String user = dotenv.get("DB_USERNAME");
+        // String password = dotenv.get("DB_PASSWORD");
+        String url = System.getenv("DB_URL");
+        String user = System.getenv("DB_USERNAME");
+        String password = System.getenv("DB_PASSWORD");
+
 
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(url);
