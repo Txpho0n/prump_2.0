@@ -5,6 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
+      - TZ=Europe/Moscow
       - DB_URL=jdbc:postgresql://db:5432/cu_mock
       - DB_USERNAME=postgres
       - DB_PASSWORD=postgres
