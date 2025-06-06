@@ -87,4 +87,148 @@ public class UserService {
     public List<User> getAllUsers() {
         return userDao.findAllUsers();
     }
+
+    public int getTotalUsersCount() {
+        try (Connection conn = dbConfig.getConnection();
+            PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM users")) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error getting total users count", e);
+        }
+    }
+
+    public int getActiveUsersCount() {
+        try (Connection conn = dbConfig.getConnection();
+            PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM users WHERE is_active = true")) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error getting active users count", e);
+        }
+    }
+
+    public int getUsersWithLeetcodeCount() {
+        try (Connection conn = dbConfig.getConnection();
+            PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM users WHERE leetcode_username IS NOT NULL")) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error getting users with leetcode count", e);
+        }
+    }
+
+    public int getUsersActiveInLastHours(int hours) {
+        try (Connection conn = dbConfig.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(
+                "SELECT COUNT(DISTINCT u.telegram_id) FROM users u " +
+                "JOIN interviews i ON u.telegram_id = i.partner1_id OR u.telegram_id = i.partner2_id " +
+                "WHERE i.start_time >= NOW() - INTERVAL '" + hours + " hours'")) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error getting users active in last hours", e);
+        }
+    }
+
+    public int getUsersActiveInLastDays(int days) {
+        try (Connection conn = dbConfig.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(
+                "SELECT COUNT(DISTINCT u.telegram_id) FROM users u " +
+                "JOIN interviews i ON u.telegram_id = i.partner1_id OR u.telegram_id = i.partner2_id " +
+                "WHERE i.start_time >= NOW() - INTERVAL '" + days + " days'")) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error getting users active in last days", e);
+        }
+    }
+
+    public Map<String, Integer> getLeagueDistribution() {
+        Map<String, Integer> distribution = new HashMap<>();
+        
+        try (Connection conn = dbConfig.getConnection();
+            PreparedStatement stmt = conn.prepareStatement("SELECT league, COUNT(*) as count FROM users GROUP BY league")) {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                distribution.put(rs.getString("league"), rs.getInt("count"));
+            }
+            return distribution;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error getting league distribution", e);
+        }
+    }
+
+    public double getAverageRating() {
+        try (Connection conn = dbConfig.getConnection();
+            PreparedStatement stmt = conn.prepareStatement("SELECT AVG(rating) FROM ratings")) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getDouble(1);
+            }
+            return 0.0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error getting average rating", e);
+        }
+    }
+
+    public int getTotalRatingsCount() {
+        try (Connection conn = dbConfig.getConnection();
+            PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM ratings")) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error getting total ratings count", e);
+        }
+    }
+
+    public Map<Integer, Integer> getRatingDistribution() {
+        Map<Integer, Integer> distribution = new HashMap<>();
+        
+        try (Connection conn = dbConfig.getConnection();
+            PreparedStatement stmt = conn.prepareStatement("SELECT rating, COUNT(*) as count FROM ratings GROUP BY rating")) {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                distribution.put(rs.getInt("rating"), rs.getInt("count"));
+            }
+            return distribution;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error getting rating distribution", e);
+        }
+    }
+
+    public List<User> getRecentUsers(int days) {
+        List<User> users = new ArrayList<>();
+        
+        try (Connection conn = dbConfig.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(
+                "SELECT * FROM users WHERE registration_date >= NOW() - INTERVAL '" + days + " days' " +
+                "ORDER BY registration_date DESC")) {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                users.add(mapResultSetToUser(rs));
+            }
+            return users;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error getting recent users", e);
+        }
+    }
 }

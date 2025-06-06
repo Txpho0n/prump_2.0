@@ -41,9 +41,11 @@ enum BotState {
     AWAITING_INTERVIEW_TIME,
     AWAITING_ADMIN_TOPIC,
     AWAITING_LEETCODE_USERNAME,
-    AWAITING_INTERVIEW_SELECTION_FOR_CANCEL, // выбор интервью для отмены
-    AWAITING_CANCELLATION_CONFIRMATION, // подтверждение отмены
-    AWAITING_RATING
+    AWAITING_INTERVIEW_SELECTION_FOR_CANCEL, 
+    AWAITING_CANCELLATION_CONFIRMATION, 
+    AWAITING_RATING,
+    AWAITING_STATS_SELECTION,
+    AWAITING_STATS_DATE_RANGE
 }
 
 public class Bot extends TelegramLongPollingBot {
@@ -58,6 +60,59 @@ public class Bot extends TelegramLongPollingBot {
     private final BotScheduler scheduler;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+
+
+
+    private void showStatisticsMenu(String chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("Выберите тип статистики для просмотра:");
+        
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+        
+        // User statistics
+        List<InlineKeyboardButton> row1 = new ArrayList<>();
+        row1.add(keyboardUtils.createButton("Пользователи (общая)", "stats_users_general"));
+        keyboard.add(row1);
+        
+        // User activity statistics
+        List<InlineKeyboardButton> row2 = new ArrayList<>();
+        row2.add(keyboardUtils.createButton("Активность пользователей", "stats_users_activity"));
+        keyboard.add(row2);
+        
+        // Interview statistics
+        List<InlineKeyboardButton> row3 = new ArrayList<>();
+        row3.add(keyboardUtils.createButton("Интервью (общая)", "stats_interviews_general"));
+        keyboard.add(row3);
+        
+        // League distribution
+        List<InlineKeyboardButton> row4 = new ArrayList<>();
+        row4.add(keyboardUtils.createButton("Распределение по лигам", "stats_league_distribution"));
+        keyboard.add(row4);
+        
+        // Ratings statistics
+        List<InlineKeyboardButton> row5 = new ArrayList<>();
+        row5.add(keyboardUtils.createButton("Статистика рейтингов", "stats_ratings"));
+        keyboard.add(row5);
+        
+        // Recent users
+        List<InlineKeyboardButton> row6 = new ArrayList<>();
+        row6.add(keyboardUtils.createButton("Новые пользователи (7 дней)", "stats_recent_users"));
+        keyboard.add(row6);
+        
+        markup.setKeyboard(keyboard);
+        message.setReplyMarkup(markup);
+        
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            System.err.println("Error sending statistics menu: " + e.getMessage());
+            sendMessage(chatId, "Ошибка при отображении меню статистики.", null);
+            userStates.put(chatId, BotState.MAIN_MENU);
+        }
+    }
+
     private void sendMessage(String chatId, String text, InlineKeyboardMarkup markup) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
@@ -168,9 +223,23 @@ public class Bot extends TelegramLongPollingBot {
                 break;
 
             case "/help":
-                sendMessage(chatId, "Команды:\n/start - начать\n/help - помощь\n/interview - новое интервью\n" +
-                        "/deactivate - отключить участие в интервью\n/activate - включить участие в интервью\n/cancel_interview - выберите интервью, которое хочется отменить\n" +
-                        "/settopic - сменить тему (админ)\n/reset - сброс состояния (используйте, когда что-то зависло)\n\nОбязательно ознакомьтесь с инструкцией по подготовке к мок-интервью: https://teletype.in/@sidnevart_cu/SUcyzdPmr62\nИ с инструкцией по тому что делать после создания интервью - https://teletype.in/@sidnevart_cu/i8PI0xFO_tt", null);
+                String helpText = "Команды:\n/start - начать\n/help - помощь\n/interview - новое интервью\n" +
+                                "/deactivate - отключить участие в интервью\n/activate - включить участие в интервью\n" +
+                                "/cancel_interview - выберите интервью, которое хочется отменить\n" +
+                                "/reset - сброс состояния (используйте, когда что-то зависло)\n" +
+                                "/feedback - оставить отзыв о боте\n\n";
+                                
+                // Add admin commands if user is admin
+                if (userService.isAdmin(chatId)) {
+                    helpText += "Админ команды:\n/settopic - сменить тему\n/stats - просмотр статистики\n";
+                }
+                
+                helpText += "Обязательно ознакомьтесь с инструкцией по подготовке к мок-интервью: " +
+                            "https://teletype.in/@sidnevart_cu/SUcyzdPmr62\n" +
+                            "И с инструкцией по тому что делать после создания интервью - " +
+                            "https://teletype.in/@sidnevart_cu/i8PI0xFO_tt";
+                            
+                sendMessage(chatId, helpText, null);
                 break;
             case "/feedback":
                 sendMessage(chatId, "Пожалуйста, оставьте свой отзыв о боте. Мы ценим ваше мнение! Пройдите опрос по ссылке - https://docs.google.com/forms/d/e/1FAIpQLSeXZ5_UG_ZaIkktMT3E1QrYsFdfNXbeRvTR24grho2NdoOO1Q/viewform?usp=dialog", null);
@@ -244,6 +313,14 @@ public class Bot extends TelegramLongPollingBot {
                     showInterviewsForCancellation(chatId);
                 } else {
                     sendMessage(chatId, "Вернитесь в главное меню с помощью /start.", null);
+                }
+                break;
+            case "/stats":
+                if (userService.isAdmin(chatId)) {
+                    showStatisticsMenu(chatId);
+                    userStates.put(chatId, BotState.AWAITING_STATS_SELECTION);
+                } else {
+                    sendMessage(chatId, "У вас нет прав администратора", null);
                 }
                 break;
                 
@@ -627,6 +704,182 @@ public class Bot extends TelegramLongPollingBot {
         execute(message);
     }
 
+    private void showUsersGeneralStats(String chatId) {
+        try {
+            int totalUsers = userService.getTotalUsersCount();
+            int activeUsers = userService.getActiveUsersCount();
+            int usersWithLeetcode = userService.getUsersWithLeetcodeCount();
+            
+            StringBuilder sb = new StringBuilder();
+            sb.append("📊 *Общая статистика пользователей*\n\n");
+            sb.append("👤 Всего пользователей: ").append(totalUsers).append("\n");
+            sb.append("✅ Активных пользователей: ").append(activeUsers).append(" (").append(String.format("%.1f", (activeUsers * 100.0 / totalUsers))).append("%)\n");
+            sb.append("💻 Пользователей с LeetCode: ").append(usersWithLeetcode).append(" (").append(String.format("%.1f", (usersWithLeetcode * 100.0 / totalUsers))).append("%)\n");
+            
+            sendMessage(chatId, sb.toString(), null);
+            
+            // Возвращаемся в меню статистики после показа
+            showStatisticsMenu(chatId);
+        } catch (Exception e) {
+            System.err.println("Error in showUsersGeneralStats: " + e.getMessage());
+            e.printStackTrace();
+            sendMessage(chatId, "Ошибка при получении статистики пользователей: " + e.getMessage(), null);
+            userStates.put(chatId, BotState.MAIN_MENU);
+        }
+    }
+
+    private void showUserActivityStats(String chatId) {
+        try {
+            int usersLast24h = userService.getUsersActiveInLastHours(24);
+            int usersLast7d = userService.getUsersActiveInLastDays(7);
+            int usersLast30d = userService.getUsersActiveInLastDays(30);
+            
+            StringBuilder sb = new StringBuilder();
+            sb.append("📊 *Статистика активности пользователей*\n\n");
+            sb.append("🕐 Активны за последние 24 часа: ").append(usersLast24h).append("\n");
+            sb.append("📅 Активны за последние 7 дней: ").append(usersLast7d).append("\n");
+            sb.append("📆 Активны за последние 30 дней: ").append(usersLast30d).append("\n");
+            
+            sendMessage(chatId, sb.toString(), null);
+            
+            showStatisticsMenu(chatId);
+        } catch (Exception e) {
+            System.err.println("Error in showUserActivityStats: " + e.getMessage());
+            e.printStackTrace();
+            sendMessage(chatId, "Ошибка при получении статистики активности: " + e.getMessage(), null);
+            userStates.put(chatId, BotState.MAIN_MENU);
+        }
+    }
+
+    private void showInterviewsGeneralStats(String chatId) {
+        try {
+            int totalInterviews = interviewService.getTotalInterviewsCount();
+            int completedInterviews = interviewService.getCompletedInterviewsCount();
+            int activeInterviews = interviewService.getActiveInterviewsCount();
+            int interviews24h = interviewService.getInterviewsInLastHours(24);
+            int interviews7d = interviewService.getInterviewsInLastDays(7);
+            
+            StringBuilder sb = new StringBuilder();
+            sb.append("📊 *Статистика интервью*\n\n");
+            sb.append("📝 Всего интервью: ").append(totalInterviews).append("\n");
+            sb.append("✅ Завершенных интервью: ").append(completedInterviews);
+            if (totalInterviews > 0) {
+                sb.append(" (").append(String.format("%.1f", (completedInterviews * 100.0 / totalInterviews))).append("%)");
+            }
+            sb.append("\n");
+            sb.append("⏳ Активных интервью: ").append(activeInterviews).append("\n");
+            sb.append("🕐 Создано за последние 24 часа: ").append(interviews24h).append("\n");
+            sb.append("📅 Создано за последние 7 дней: ").append(interviews7d).append("\n");
+            
+            sendMessage(chatId, sb.toString(), null);
+            
+            showStatisticsMenu(chatId);
+        } catch (Exception e) {
+            System.err.println("Error in showInterviewsGeneralStats: " + e.getMessage());
+            e.printStackTrace();
+            sendMessage(chatId, "Ошибка при получении статистики интервью: " + e.getMessage(), null);
+            userStates.put(chatId, BotState.MAIN_MENU);
+        }
+    }
+
+    private void showLeagueDistributionStats(String chatId) {
+        try {
+            Map<String, Integer> leagueDistribution = userService.getLeagueDistribution();
+            int totalUsers = userService.getTotalUsersCount();
+            
+            StringBuilder sb = new StringBuilder();
+            sb.append("📊 *Распределение пользователей по лигам*\n\n");
+            
+            for (Map.Entry<String, Integer> entry : leagueDistribution.entrySet()) {
+                String league = entry.getKey();
+                int count = entry.getValue();
+                double percentage = (totalUsers > 0) ? (count * 100.0 / totalUsers) : 0;
+                
+                String leagueEmoji = "🏅";
+                if (league.equalsIgnoreCase("Easy")) leagueEmoji = "🥉";
+                else if (league.equalsIgnoreCase("Medium")) leagueEmoji = "🥈";
+                else if (league.equalsIgnoreCase("Hard")) leagueEmoji = "🥇";
+                
+                sb.append(leagueEmoji).append(" ").append(league).append(": ")
+                .append(count).append(" (").append(String.format("%.1f", percentage)).append("%)\n");
+            }
+            
+            sendMessage(chatId, sb.toString(), null);
+            
+            showStatisticsMenu(chatId);
+        } catch (Exception e) {
+            System.err.println("Error in showLeagueDistributionStats: " + e.getMessage());
+            e.printStackTrace();
+            sendMessage(chatId, "Ошибка при получении статистики лиг: " + e.getMessage(), null);
+            userStates.put(chatId, BotState.MAIN_MENU);
+        }
+    }
+
+    private void showRatingsStats(String chatId) {
+        try {
+            double avgRating = userService.getAverageRating();
+            int totalRatings = userService.getTotalRatingsCount();
+            Map<Integer, Integer> ratingDistribution = userService.getRatingDistribution();
+            
+            StringBuilder sb = new StringBuilder();
+            sb.append("📊 *Статистика рейтингов*\n\n");
+            sb.append("⭐ Средний рейтинг: ").append(String.format("%.2f", avgRating)).append("/10\n");
+            sb.append("📊 Всего оценок: ").append(totalRatings).append("\n\n");
+            sb.append("*Распределение оценок:*\n");
+            
+            for (int i = 10; i >= 1; i--) {
+                int count = ratingDistribution.getOrDefault(i, 0);
+                double percentage = (totalRatings > 0) ? (count * 100.0 / totalRatings) : 0;
+                sb.append(i).append("⭐: ").append(count)
+                .append(" (").append(String.format("%.1f", percentage)).append("%)\n");
+            }
+            
+            sendMessage(chatId, sb.toString(), null);
+            
+            showStatisticsMenu(chatId);
+        } catch (Exception e) {
+            System.err.println("Error in showRatingsStats: " + e.getMessage());
+            e.printStackTrace();
+            sendMessage(chatId, "Ошибка при получении статистики рейтингов: " + e.getMessage(), null);
+            userStates.put(chatId, BotState.MAIN_MENU);
+        }
+    }
+
+    private void showRecentUsers(String chatId) {
+        try {
+            List<User> recentUsers = userService.getRecentUsers(7);
+            
+            StringBuilder sb = new StringBuilder();
+            sb.append("📊 *Новые пользователи за последние 7 дней*\n\n");
+            
+            if (recentUsers.isEmpty()) {
+                sb.append("За последние 7 дней новых пользователей не было.");
+            } else {
+                for (User user : recentUsers) {
+                    String username = user.getTgUsername() != null ? "@" + user.getTgUsername() : "Неизвестно";
+                    String leetcode = user.getLeetcodeUsername() != null ? user.getLeetcodeUsername() : "Не указан";
+                    String registrationDate = user.getRegistrationDate() != null ? 
+                        user.getRegistrationDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")) : "Неизвестно";
+                    
+                    sb.append("👤 ").append(username)
+                    .append(" | LeetCode: ").append(leetcode)
+                    .append(" | Дата: ").append(registrationDate)
+                    .append(" | XP: ").append(user.getXp())
+                    .append("\n");
+                }
+            }
+            
+            sendMessage(chatId, sb.toString(), null);
+            
+            showStatisticsMenu(chatId);
+        } catch (Exception e) {
+            System.err.println("Error in showRecentUsers: " + e.getMessage());
+            e.printStackTrace();
+            sendMessage(chatId, "Ошибка при получении списка новых пользователей: " + e.getMessage(), null);
+            userStates.put(chatId, BotState.MAIN_MENU);
+        }
+    }
+
     private void handleCallback(Update update) throws TelegramApiException {
         String callbackData = update.getCallbackQuery().getData();
         long chatId = update.getCallbackQuery().getMessage().getChatId();
@@ -683,7 +936,40 @@ public class Bot extends TelegramLongPollingBot {
                 userStates.put(telegramId, BotState.AWAITING_CANCELLATION_CONFIRMATION);
             } else if (callbackData.startsWith("rate_")) {
                 handleRatingCallback(telegramId, callbackData);
-            } else {
+            } else if (state == BotState.AWAITING_STATS_SELECTION && callbackData.startsWith("stats_")) {
+                String statType = callbackData.substring(6); // Remove "stats_" prefix
+                try {
+                    switch (statType) {
+                        case "users_general":
+                            showUsersGeneralStats(telegramId);
+                            break;
+                        case "users_activity":
+                            showUserActivityStats(telegramId);
+                            break;
+                        case "interviews_general":
+                            showInterviewsGeneralStats(telegramId);
+                            break;
+                        case "league_distribution":
+                            showLeagueDistributionStats(telegramId);
+                            break;
+                        case "ratings":
+                            showRatingsStats(telegramId);
+                            break;
+                        case "recent_users":
+                            showRecentUsers(telegramId);
+                            break;
+                        default:
+                            sendMessage(telegramId, "Неизвестный тип статистики", null);
+                            showStatisticsMenu(telegramId);
+                            break;
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error showing statistics: " + e.getMessage());
+                    e.printStackTrace();
+                    sendMessage(telegramId, "Ошибка при получении статистики: " + e.getMessage(), null);
+                }
+            }  
+             else {
                 sendMessage(telegramId, "Ошибка: неверное действие. Используйте /start.",null);
                 userStates.put(telegramId, BotState.MAIN_MENU);
             }
