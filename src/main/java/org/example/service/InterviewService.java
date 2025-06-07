@@ -120,6 +120,33 @@ public class InterviewService {
         }
     }
 
+    public int getCompletedInterviewsCount() {
+        try (Connection conn = databaseConfig.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(
+                "SELECT COUNT(*) FROM interviews WHERE end_time < NOW()")) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+            return 0;
+        } catch (Exception e) {
+            throw new RuntimeException("Error getting completed interviews count", e);
+        }
+    }
+
+    public int getTotalInterviewsCount() {
+        try (Connection conn = databaseConfig.getConnection();
+            PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM interviews")) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+            return 0;
+        } catch (Exception e) {
+            throw new RuntimeException("Error getting total interviews count", e);
+        }
+    }
+
     public int getInterviewsInLastHours(int hours) {
         try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
@@ -129,7 +156,7 @@ public class InterviewService {
                 return rs.getInt(1);
             }
             return 0;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error getting interviews in last hours", e);
         }
     }
@@ -143,7 +170,7 @@ public class InterviewService {
                 return rs.getInt(1);
             }
             return 0;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error getting interviews in last days", e);
         }
     }
