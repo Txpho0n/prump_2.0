@@ -9,8 +9,11 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.ResultSet;
 import java.time.LocalDate;
 import java.util.List;
+
+
 
 public class InterviewService {
     private final InterviewDaoImpl interviewDao;
@@ -75,7 +78,7 @@ public class InterviewService {
 
 
     public int getTotalInterviewsCount() {
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM interviews")) {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -88,7 +91,7 @@ public class InterviewService {
     }
 
     public int getCompletedInterviewsCount() {
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
                 "SELECT COUNT(*) FROM interviews WHERE end_time < NOW()")) {
             ResultSet rs = stmt.executeQuery();
@@ -102,7 +105,7 @@ public class InterviewService {
     }
 
     public int getActiveInterviewsCount() {
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
                 "SELECT COUNT(*) FROM interviews WHERE end_time >= NOW()")) {
             ResultSet rs = stmt.executeQuery();
@@ -116,7 +119,7 @@ public class InterviewService {
     }
 
     public int getInterviewsInLastHours(int hours) {
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
                 "SELECT COUNT(*) FROM interviews WHERE start_time >= NOW() - INTERVAL '" + hours + " hours'")) {
             ResultSet rs = stmt.executeQuery();
@@ -130,7 +133,7 @@ public class InterviewService {
     }
 
     public int getInterviewsInLastDays(int days) {
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
                 "SELECT COUNT(*) FROM interviews WHERE start_time >= NOW() - INTERVAL '" + days + " days'")) {
             ResultSet rs = stmt.executeQuery();
@@ -142,4 +145,6 @@ public class InterviewService {
             throw new RuntimeException("Error getting interviews in last days", e);
         }
     }
+
+
 }

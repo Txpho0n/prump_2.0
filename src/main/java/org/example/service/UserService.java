@@ -89,7 +89,7 @@ public class UserService {
     }
 
     public int getTotalUsersCount() {
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM users")) {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -102,7 +102,7 @@ public class UserService {
     }
 
     public int getActiveUsersCount() {
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM users WHERE is_active = true")) {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -115,7 +115,7 @@ public class UserService {
     }
 
     public int getUsersWithLeetcodeCount() {
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM users WHERE leetcode_username IS NOT NULL")) {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -128,7 +128,7 @@ public class UserService {
     }
 
     public int getUsersActiveInLastHours(int hours) {
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
                 "SELECT COUNT(DISTINCT u.telegram_id) FROM users u " +
                 "JOIN interviews i ON u.telegram_id = i.partner1_id OR u.telegram_id = i.partner2_id " +
@@ -144,7 +144,7 @@ public class UserService {
     }
 
     public int getUsersActiveInLastDays(int days) {
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
                 "SELECT COUNT(DISTINCT u.telegram_id) FROM users u " +
                 "JOIN interviews i ON u.telegram_id = i.partner1_id OR u.telegram_id = i.partner2_id " +
@@ -162,7 +162,7 @@ public class UserService {
     public Map<String, Integer> getLeagueDistribution() {
         Map<String, Integer> distribution = new HashMap<>();
         
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement("SELECT league, COUNT(*) as count FROM users GROUP BY league")) {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
@@ -175,7 +175,7 @@ public class UserService {
     }
 
     public double getAverageRating() {
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement("SELECT AVG(rating) FROM ratings")) {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -188,7 +188,7 @@ public class UserService {
     }
 
     public int getTotalRatingsCount() {
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM ratings")) {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -203,7 +203,7 @@ public class UserService {
     public Map<Integer, Integer> getRatingDistribution() {
         Map<Integer, Integer> distribution = new HashMap<>();
         
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement("SELECT rating, COUNT(*) as count FROM ratings GROUP BY rating")) {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
@@ -218,7 +218,7 @@ public class UserService {
     public List<User> getRecentUsers(int days) {
         List<User> users = new ArrayList<>();
         
-        try (Connection conn = dbConfig.getConnection();
+        try (Connection conn = databaseConfig.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
                 "SELECT * FROM users WHERE registration_date >= NOW() - INTERVAL '" + days + " days' " +
                 "ORDER BY registration_date DESC")) {
@@ -230,5 +230,26 @@ public class UserService {
         } catch (SQLException e) {
             throw new RuntimeException("Error getting recent users", e);
         }
+    }
+
+    private User mapResultSetToUser(ResultSet rs) throws SQLException {
+        return new User(
+            rs.getString("tg_username"),
+            rs.getString("telegram_id"),
+            rs.getString("leetcode_username"),
+            rs.getLong("xp"),
+            rs.getString("league"),
+            rs.getString("full_name"),
+            rs.getTimestamp("last_mock_interview") != null
+                ? rs.getTimestamp("last_mock_interview").toLocalDateTime()
+                : null,
+            rs.getTimestamp("last_solved_task_timestamp") != null
+                ? rs.getTimestamp("last_solved_task_timestamp").toLocalDateTime()
+                : null,
+            rs.getTimestamp("registration_date").toLocalDateTime(),
+            rs.getBoolean("is_admin"),
+            rs.getBoolean("is_active"),
+            rs.getDouble("social_rating")
+        );
     }
 }
