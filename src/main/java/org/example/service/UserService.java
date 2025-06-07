@@ -103,7 +103,7 @@ public class UserService {
                 return rs.getInt(1);
             }
             return 0;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error getting total users count", e);
         }
     }
@@ -116,7 +116,7 @@ public class UserService {
                 return rs.getInt(1);
             }
             return 0;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error getting active users count", e);
         }
     }
@@ -129,7 +129,7 @@ public class UserService {
                 return rs.getInt(1);
             }
             return 0;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error getting users with leetcode count", e);
         }
     }
@@ -145,7 +145,7 @@ public class UserService {
                 return rs.getInt(1);
             }
             return 0;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error getting users active in last hours", e);
         }
     }
@@ -161,7 +161,7 @@ public class UserService {
                 return rs.getInt(1);
             }
             return 0;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error getting users active in last days", e);
         }
     }
@@ -176,7 +176,7 @@ public class UserService {
                 distribution.put(rs.getString("league"), rs.getInt("count"));
             }
             return distribution;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error getting league distribution", e);
         }
     }
@@ -189,7 +189,7 @@ public class UserService {
                 return rs.getDouble(1);
             }
             return 0.0;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error getting average rating", e);
         }
     }
@@ -202,7 +202,7 @@ public class UserService {
                 return rs.getInt(1);
             }
             return 0;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error getting total ratings count", e);
         }
     }
@@ -217,7 +217,7 @@ public class UserService {
                 distribution.put(rs.getInt("rating"), rs.getInt("count"));
             }
             return distribution;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error getting rating distribution", e);
         }
     }
@@ -234,7 +234,7 @@ public class UserService {
                 users.add(mapResultSetToUser(rs));
             }
             return users;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error getting recent users", e);
         }
     }
